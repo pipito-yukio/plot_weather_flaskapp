@@ -1,0 +1,98 @@
+2022-05-29 18:32:08 DEBUG __init__.py(35)[<module>] app.secret_key: b'9I\x1f\xf7\xb7EI\xe1\x99\x07*Z.\xaa\xe68'
+2022-05-29 18:32:08 DEBUG __init__.py(36)[<module>] <Config {'ENV': 'production', 'DEBUG': False, 'TESTING': False, 'PROPAGATE_EXCEPTIONS': None, 'PRESERVE_CONTEXT_ON_EXCEPTION': None, 'SECRET_KEY': b'9I\x1f\xf7\xb7EI\xe1\x99\x07*Z.\xaa\xe68', 'PERMANENT_SESSION_LIFETIME': datetime.timedelta(days=31), 'USE_X_SENDFILE': False, 'SERVER_NAME': 'Dell-T7500.local:5000', 'APPLICATION_ROOT': '/plot_weather', 'SESSION_COOKIE_NAME': 'session', 'SESSION_COOKIE_DOMAIN': None, 'SESSION_COOKIE_PATH': None, 'SESSION_COOKIE_HTTPONLY': True, 'SESSION_COOKIE_SECURE': False, 'SESSION_COOKIE_SAMESITE': None, 'SESSION_REFRESH_EACH_REQUEST': True, 'MAX_CONTENT_LENGTH': None, 'SEND_FILE_MAX_AGE_DEFAULT': datetime.timedelta(seconds=43200), 'TRAP_BAD_REQUEST_ERRORS': None, 'TRAP_HTTP_EXCEPTIONS': False, 'EXPLAIN_TEMPLATE_LOADING': False, 'PREFERRED_URL_SCHEME': 'http', 'JSON_AS_ASCII': False, 'JSON_SORT_KEYS': True, 'JSONIFY_PRETTYPRINT_REGULAR': False, 'JSONIFY_MIMETYPE': 'application/json', 'TEMPLATES_AUTO_RELOAD': None, 'MAX_COOKIE_SIZE': 4093, 'INFO_TODAY_UPDATE_INTERVAL': '本日データの更新は１０分間隔', 'STR_TODAY': '本日', 'TITLE_SUFFIX': 'データ表示', 'REQUEST_HEADER': 'X-PLOT-WWEATHER-TOKEN', 'REQUEST_KEY_WITH_PC': 'mvyx16uEZ8Up39WHm1Vs2PJENPW7Q-xOGH-KZ6mzD079CG5BUCMR0hMjGvXRbDB6QHu0V9tAPxI2GJQatCdyrw', 'REQUEST_KEY_WITH_PHONE_': 'DwBEEeF3UirKeSj6H5Uh0BMSqT1U25hprsxblyJDYtU'}>
+2022-05-29 18:32:09 INFO run.py(15)[<module>] run.py in host: Dell-T7500.local, port: 5000
+2022-05-29 18:32:09 INFO run.py(30)[<module>] Development start, with debug.
+2022-05-29 18:32:14 DEBUG weatherdao.py(132)[_getDateGroupByList] tupledlist: [('2022-05',), ('2022-04',), ('2022-03',), ('2022-02',), ('2022-01',), ('2021-12',), ('2021-11',)]
+2022-05-29 18:32:14 DEBUG app_main.py(52)[index] yearMonthList:['2022-05', '2022-04', '2022-03', '2022-02', '2022-01', '2021-12', '2021-11']
+2022-05-29 18:32:14 DEBUG weatherdbwithpandas.py(49)[getTodayDataFrame] SQL: 
+    SELECT
+       datetime(measurement_time, 'unixepoch', 'localtime') as measurement_time
+       , temp_out, temp_in, humid, pressure
+    FROM
+       t_weather
+    WHERE
+       did=(SELECT id FROM t_device WHERE name='esp8266_1')
+       AND
+       measurement_time >= strftime('%s', date('now'), '-9 hours')
+    ORDER BY did, measurement_time;
+    
+2022-05-29 18:32:14 DEBUG app_main.py(33)[close_conn] db:<sqlite3.Connection object at 0x7f99721b7d50>
+2022-05-29 18:32:22 DEBUG app_main.py(104)[getMonthImage] yearmonth: 2022-03
+2022-05-29 18:32:22 DEBUG weatherdbwithpandas.py(57)[getMonthDataFrame] SQL: 
+    SELECT
+       datetime(measurement_time, 'unixepoch', 'localtime') as measurement_time
+       , temp_out, temp_in, humid, pressure
+    FROM
+       t_weather
+    WHERE
+       did=(SELECT id FROM t_device WHERE name='esp8266_1')
+       AND (
+         measurement_time >= strftime('%s', '2022-03-01', '-9 hours')
+         AND
+         measurement_time < strftime('%s', '2022-04-01', '-9 hours')
+       )
+    ORDER BY did, measurement_time;
+    
+2022-05-29 18:32:23 DEBUG app_main.py(33)[close_conn] db:<sqlite3.Connection object at 0x7f996d8f0c70>
+2022-05-29 18:32:29 DEBUG app_main.py(104)[getMonthImage] yearmonth: 2021-12
+2022-05-29 18:32:29 DEBUG weatherdbwithpandas.py(57)[getMonthDataFrame] SQL: 
+    SELECT
+       datetime(measurement_time, 'unixepoch', 'localtime') as measurement_time
+       , temp_out, temp_in, humid, pressure
+    FROM
+       t_weather
+    WHERE
+       did=(SELECT id FROM t_device WHERE name='esp8266_1')
+       AND (
+         measurement_time >= strftime('%s', '2021-12-01', '-9 hours')
+         AND
+         measurement_time < strftime('%s', '2022-01-01', '-9 hours')
+       )
+    ORDER BY did, measurement_time;
+    
+2022-05-29 18:32:30 DEBUG app_main.py(33)[close_conn] db:<sqlite3.Connection object at 0x7f99500cb030>
+2022-05-29 18:32:43 DEBUG app_main.py(84)[getTodayImage] getTodayImage()
+2022-05-29 18:32:43 DEBUG weatherdbwithpandas.py(49)[getTodayDataFrame] SQL: 
+    SELECT
+       datetime(measurement_time, 'unixepoch', 'localtime') as measurement_time
+       , temp_out, temp_in, humid, pressure
+    FROM
+       t_weather
+    WHERE
+       did=(SELECT id FROM t_device WHERE name='esp8266_1')
+       AND
+       measurement_time >= strftime('%s', date('now'), '-9 hours')
+    ORDER BY did, measurement_time;
+    
+2022-05-29 18:32:43 DEBUG app_main.py(33)[close_conn] db:<sqlite3.Connection object at 0x7f99500cb030>
+2022-05-29 18:33:02 DEBUG app_main.py(84)[getTodayImage] getTodayImage()
+2022-05-29 18:33:02 DEBUG weatherdbwithpandas.py(49)[getTodayDataFrame] SQL: 
+    SELECT
+       datetime(measurement_time, 'unixepoch', 'localtime') as measurement_time
+       , temp_out, temp_in, humid, pressure
+    FROM
+       t_weather
+    WHERE
+       did=(SELECT id FROM t_device WHERE name='esp8266_1')
+       AND
+       measurement_time >= strftime('%s', date('now'), '-9 hours')
+    ORDER BY did, measurement_time;
+    
+2022-05-29 18:33:02 DEBUG app_main.py(33)[close_conn] db:<sqlite3.Connection object at 0x7f993bdd0490>
+2022-05-29 18:33:52 DEBUG app_main.py(104)[getMonthImage] yearmonth: 2022-05
+2022-05-29 18:33:52 DEBUG weatherdbwithpandas.py(57)[getMonthDataFrame] SQL: 
+    SELECT
+       datetime(measurement_time, 'unixepoch', 'localtime') as measurement_time
+       , temp_out, temp_in, humid, pressure
+    FROM
+       t_weather
+    WHERE
+       did=(SELECT id FROM t_device WHERE name='esp8266_1')
+       AND (
+         measurement_time >= strftime('%s', '2022-05-01', '-9 hours')
+         AND
+         measurement_time < strftime('%s', '2022-06-01', '-9 hours')
+       )
+    ORDER BY did, measurement_time;
+    
+2022-05-29 18:33:53 DEBUG app_main.py(33)[close_conn] db:<sqlite3.Connection object at 0x7f9983a78650>

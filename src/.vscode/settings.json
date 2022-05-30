@@ -1,0 +1,13 @@
+{
+  "python.defaultInterpreterPath": "/home/yukio/py_venv/py37_flask/bin/python",
+  "python.linting.flake8Enabled": true,
+  "python.formatting.provider": "black",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": true
+  },
+  "python.linting.mypyEnabled": true,
+  "python.linting.flake8Args": [
+    "--max-line-length=88",
+  ],
+}
