@@ -25,7 +25,9 @@ def gen_plotimage(conn, year_month=None, logger=None):
     wpd = WeatherPandas(conn, logger=logger)
     if year_month is None:
         # 本日データ
-        df = wpd.getTodayDataFrame(WEATHER_CONF["DEVICE_NAME"])
+        df = wpd.getTodayDataFrame(
+            WEATHER_CONF["DEVICE_NAME"], today=WEATHER_CONF["TODAY"]
+        )
         # タイムスタンプをデータフレームのインデックスに設定
         df.index = df[PLOT_WEATHER_IDX_COLUMN]
         # 先頭の測定日付(Pandas Timestamp) から Pythonのdatetimeに変換
@@ -48,6 +50,9 @@ def gen_plotimage(conn, year_month=None, logger=None):
         # タイトル用の日本語日付(曜日)
         splited = year_month.split("-")
         s_title_date = f"{splited[0]}年{splited[1]}月"
+    # データフレームをDEBUGレベルでログに出力
+    if logger is not None:
+        logger.debug(df)
 
     # https://matplotlib.org/stable/api/figure_api.html?highlight=figure#module-matplotlib.figure
     fig = Figure(figsize=PLOT_CONF["figsize"]["pc"])

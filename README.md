@@ -18,7 +18,7 @@ Matplotlibで生成したグラフをファイル保存せずに直接ブラウ�
 * この画面では当日の気象データをデータベースから取得し、0時〜翌0時までの期間で表示します。
 * 2回目以降はJavaScriptがサーバサイド側に本日データの最新をリクエストします。
  
-<div style="text-align:center;border:solid thin">
+<div style="text-align:center;border:solid;">
 <img src="images/PlotToday_final.jpg" width="700">
 </div>
 <br/>
@@ -32,7 +32,7 @@ Matplotlibで生成したグラフをファイル保存せずに直接ブラウ�
 * サーバサイド側は要求された年月のデータをデータベースから取得しMatplotlibライブラリを使ってグラフを生成しbase64エンコードした文字列としてJsonでクライアント側に返却します。
 * JavaScriptでは受信したbase64エンコード文字列済みの画像をイメージタグのソースに設定し新たな画像を表示します。
 
-<div style="text-align:center;border:solid thin">
+<div style="text-align:center;border:solid;">
 <img src="images/PlotYearMonth_final.png" width="700">
 </div>
 <br/>
@@ -40,12 +40,27 @@ Matplotlibで生成したグラフをファイル保存せずに直接ブラウ�
 #### このWebアプリの元になったのは [home_weather_sensors]リポジトリの learn_matplotlibプロジェクトで、下記がGUIウインドウに画像を出力したときの画面となります。
 
 ※こちらのアプリでは観測データのCSVファイルからMatplotlibのグラフを生成し、任意の期間を選択して表示・保存することがてきます。
-<div style="text-align:center;border:solid thin">
+<div style="text-align:center;border:">
 <img src="images/GUIApp_tkinter_weather_csv_2.jpg" width="700">
 </div>
 <br/>
 
+### 1-3. 不正リクエスト時の表示
 
+* Google Chromeデベロッパーツールで不正な日付を送信するところ。  
+  (例) "2022-03" ==> "202213"
+
+<div style="text-align:center;border:solid;">
+<img src="images/Chome_Dubuge.png" width="700">
+</div>
+<br/>
+
+* BAD REQUEST の画像を表示して、更新ボタンを不可に設定。
+
+<div style="text-align:center;border:solid;">
+<img src="images/PlotBadRequest.png" width="700">
+</div>
+<br/>
 
 ## 2.参考にしたソースの出典元の紹介
 
@@ -74,6 +89,88 @@ pd.read_sql('SELECT int_column, date_column FROM test_data',
 0           0  2012-10-11
 1           1  2010-12-11
 ```
+
+* 上記(2)のサンプルからでは分かりませんが、**プレースフォルダ付SQLとそれに対応するパラメータを渡すことができます。**  
+(参考URL) **本家Github** pandas-dev/pandas  
+<https://github.com/pandas-dev/pandas/blob/v1.3.2/pandas/io/sql.py>
+
+* 対応するプレースフォルダについては下記のサイトをご覧ください。  
+(参考URL) **PEP 249** – Python Database API Specification v2.0  
+<https://peps.python.org/pep-0249/>
+
+pandas.read_sql() 呼び出し箇所のPyDoc
+
+```python
+def read_sql(
+    sql,
+    con,
+    index_col: str | Sequence[str] | None = None,
+    coerce_float: bool = True,
+    params=None,
+    parse_dates=None,
+    columns=None,
+    chunksize: int | None = None,
+) -> DataFrame | Iterator[DataFrame]:
+    """
+    Read SQL query or database table into a DataFrame.
+    This function is a convenience wrapper around ``read_sql_table`` and
+    ``read_sql_query`` (for backward compatibility). It will delegate
+    to the specific function depending on the provided input. A SQL query
+    will be routed to ``read_sql_query``, while a database table name will
+    be routed to ``read_sql_table``. Note that the delegated function might
+    have more specific notes about their functionality not listed here.
+    Parameters
+    ----------
+    sql : str or SQLAlchemy Selectable (select or text object)
+        SQL query to be executed or a table name.
+    con : SQLAlchemy connectable, str, or sqlite3 connection
+        Using SQLAlchemy makes it possible to use any DB supported by that
+        library. If a DBAPI2 object, only sqlite3 is supported. The user is responsible
+        for engine disposal and connection closure for the SQLAlchemy connectable; str
+        connections are closed automatically. See
+        `here <https://docs.sqlalchemy.org/en/13/core/connections.html>`_.
+    index_col : str or list of str, optional, default: None
+        Column(s) to set as index(MultiIndex).
+    coerce_float : bool, default True
+        Attempts to convert values of non-string, non-numeric objects (like
+        decimal.Decimal) to floating point, useful for SQL result sets.
+    params : list, tuple or dict, optional, default: None
+        List of parameters to pass to execute method.  The syntax used
+        to pass parameters is database driver dependent. Check your
+        database driver documentation for which of the five syntax styles,
+        described in PEP 249's paramstyle, is supported.
+        Eg. for psycopg2, uses %(name)s so use params={'name' : 'value'}.
+
+    ...一部省略...    
+    Returns
+
+```
+
+* PEP 249形式のパラメータに対応するデータベースはSQLite3のみ、それ以外データベースは SQLAlchemy 経由となっています  
+
+```python
+def execute(sql, con, params=None):
+    """
+    Execute the given SQL query using the provided connection object.
+    Parameters
+    ----------
+    sql : string
+        SQL query to be executed.
+    con : SQLAlchemy connectable(engine/connection) or sqlite3 connection
+        Using SQLAlchemy makes it possible to use any DB supported by the
+        library.
+        If a DBAPI2 object, only sqlite3 is supported.
+    params : list or tuple, optional, default: None
+        List of parameters to pass to execute method.
+    Returns
+    -------
+    Results Iterable
+    """
+    pandas_sql = pandasSQL_builder(con)
+    args = _convert_params(sql, params)
+    return pandas_sql.execute(*args)
+```
+
 
 ### 2-2. グラフ描画イメージからHTMLイメーシタグを生成する方法
 
@@ -224,7 +321,7 @@ WHERE
 
 ### 3-2. Pandas データフレーム生成クラス
 
-SQLの違いはプレースフォルダだけになります。DAOクラスはプレースフォルダが "?"なのでSQLインジェクション防止対策がとれらていますが、**Pandasの方は "{}"とただ置き換えているだけなので引数のチェックが別途必要になります。当アプリでは呼び出し元で妥当性チェックしています。**
+SQLの違いはプレースフォルダだけになります。DAOクラスはプレースフォルダが [?]スタイル、Pandasの方は [Named style]としています。
 
 * 当日データのデータフレーム生成メソッド: getTodayDataFrame()
 * 指定された年月ののデータフレーム生成メソッド: getMonthDataFrame()
@@ -246,9 +343,9 @@ class WeatherPandas:
     FROM
        t_weather
     WHERE
-       did=(SELECT id FROM t_device WHERE name='{}')
+       did=(SELECT id FROM t_device WHERE name=:device_name)
        AND
-       measurement_time >= strftime('%s', date('now'), '-9 hours')
+       measurement_time >= strftime('%s', date(:today), '-9 hours')
     ORDER BY did, measurement_time;
     """
 
@@ -259,11 +356,11 @@ class WeatherPandas:
     FROM
        t_weather
     WHERE
-       did=(SELECT id FROM t_device WHERE name='{}')
+       did=(SELECT id FROM t_device WHERE name=:device_name)
        AND (
-         measurement_time >= strftime('%s', '{}', '-9 hours')
+         measurement_time >= strftime('%s', date(:day_start), '-9 hours')
          AND
-         measurement_time < strftime('%s', '{}', '-9 hours')
+         measurement_time < strftime('%s', date(:day_end), '-9 hours')
        )
     ORDER BY did, measurement_time;
     """
@@ -272,15 +369,31 @@ class WeatherPandas:
         self.conn = conn
         self.logger = logger
 
-    def getTodayDataFrame(self, device_name):
-        sql = self._QUERY_TODAY_DATA.format(device_name)
-        return pd.read_sql(sql, self.conn, parse_dates=["measurement_time"])
+    def getTodayDataFrame(self, device_name, today="now"):
+        query_params = {"device_name": device_name, "today": today}
+
+        return pd.read_sql(
+            self._QUERY_TODAY_DATA,
+            self.conn,
+            params=query_params,
+            parse_dates=["measurement_time"],
+        )
 
     def getMonthDataFrame(self, device_name, s_year_month):
         s_start = s_year_month + "-01"
         s_end_exclude = nextYearMonth(s_start)
-        sql = self._QUERY_MONTH_DATA.format(device_name, s_start, s_end_exclude)
-        return pd.read_sql(sql, self.conn, parse_dates=["measurement_time"])
+        query_params = {
+            "device_name": device_name,
+            "day_start": s_start,
+            "day_end": s_end_exclude,
+        }
+
+        return pd.read_sql(
+            self._QUERY_MONTH_DATA,
+            self.conn,
+            params=query_params,
+            parse_dates=["measurement_time"],
+        )
 ```
 
 ### 3-3. Matplotlibグラフ出力関数
@@ -308,8 +421,9 @@ class WeatherPandas:
 
 ```json
 {
-  "DEVICE_NAME":"esp8266_1",   <= ESPセンサーモジュール名 
-  "STA_YEARMONTH": "2021-11"   <== 観測データが安定した年月、これ以前のデータは欠損が多いため除外
+  "DEVICE_NAME":"esp8266_1",  <= ESPセンサーモジュール名 
+  "STA_YEARMONTH": "2021-11",  <== 観測データが安定した年月、これ以前のデータは欠損が多いため除外
+  "TODAY": "now" <== テスト用に変更可能 (例) 本日["now"] 又は、過去日の ["2022-01-30"] もOK
 }
 ```
 
@@ -364,10 +478,13 @@ def gen_plotimage(conn, year_month=None, logger=None):
     wpd = WeatherPandas(conn, logger=logger)
     if year_month is None:
         # 本日データ
-        df = wpd.getTodayDataFrame(WEATHER_CONF["DEVICE_NAME"])
+        df = wpd.getTodayDataFrame(
+            WEATHER_CONF["DEVICE_NAME"], today=WEATHER_CONF["TODAY"]
+        )
         # タイムスタンプをデータフレームのインデックスに設定
         df.index = df[PLOT_WEATHER_IDX_COLUMN]
         # 先頭の測定日付(Pandas Timestamp) から Pythonのdatetimeに変換
+        # https://pandas.pydata.org/pandas-docs/version/0.22/generated/pandas.Timestamp.to_datetime.html
         first_datetime = df.index[0].to_pydatetime()
         # 当日の日付文字列 ※一旦 date()オブジェクトに変換して"年月日"を取得
         s_first_date = first_datetime.date().isoformat()
@@ -386,6 +503,9 @@ def gen_plotimage(conn, year_month=None, logger=None):
         # タイトル用の日本語日付(曜日)
         splited = year_month.split("-")
         s_title_date = f"{splited[0]}年{splited[1]}月"
+    # データフレームをDEBUGレベルでログに出力
+    if logger is not None:
+        logger.debug(df)
 
     fig = Figure(figsize=PLOT_CONF["figsize"]["pc"])
     label_fontsize, ticklabel_fontsize, ticklable_date_fontsize = tuple(
@@ -463,10 +583,15 @@ def gen_plotimage(conn, year_month=None, logger=None):
 * (2) JavaScriptからの当日データ取得リクエストをうけ、当日データから画像を生成してjsonで返却します
 * (3) JavaScriptからの年月データ取得リクエストをうけ、指定された年月の月間データから画像を生成してjsonで返却します
 
-[views/app_main.py] ※ログ出力部分は省略しています
+[views/app_main.py]
 ```python
 from flask import abort, g, jsonify, render_template
-from plot_weather import app, app_logger
+from plot_weather import (
+    BAD_REQUEST_IMAGE_DATA,
+    INTERNAL_SERVER_ERROR_IMAGE_DATA,
+    app,
+    app_logger,
+)
 from plot_weather.dao.weathercommon import WEATHER_CONF
 from plot_weather.dao.weatherdao import WeatherDao, weather_db
 from plot_weather.db import sqlite3db
@@ -474,10 +599,10 @@ from plot_weather.db.sqlite3conv import DateFormatError, strdate2timestamp
 from plot_weather.plotter.plotterweather import gen_plotimage
 from werkzeug.exceptions import BadRequest
 
-APP_ROOT = app.config["APPLICATION_ROOT"]      # APP_ROOT="/plot_weather
-CODE_BAD_REQUEST = 400
-MSG_TITLE_SUFFIX = app.config["TITLE_SUFFIX"]  # messages/messages.conf 参照
-MSG_STR_TODAY = app.config["STR_TODAY"]        # 同上
+APP_ROOT = app.config["APPLICATION_ROOT"]
+CODE_BAD_REQUEST, CODE_INTERNAL_SERVER_ERROR = 400, 500
+MSG_TITLE_SUFFIX = app.config["TITLE_SUFFIX"]
+MSG_STR_TODAY = app.config["STR_TODAY"]
 
 
 def get_dbconn():
@@ -502,7 +627,7 @@ def close_conn(exception):
         db.close()
 
 
-@app.route(APP_ROOT, methods=["GET"])                      # (1)
+@app.route(APP_ROOT, methods=["GET"])                          # (1)
 def index():
     """本日データ表示画面 (初回リクエストのみ)
 
@@ -516,10 +641,12 @@ def index():
             device_name=WEATHER_CONF["DEVICE_NAME"],
             start_date=WEATHER_CONF["STA_YEARMONTH"],
         )
+        app_logger.debug("yearMonthList:{}".format(yearMonthList))
         # 本日データプロット画像取得
         imgBase64Encoded = gen_plotimage(conn, logger=app_logger)
     except Exception as exp:
-        return abort(501)
+        app_logger.error(exp)
+        return abort(CODE_INTERNAL_SERVER_ERROR)
 
     strToday = app.config.get("STR_TODAY")
     titleSuffix = app.config.get("TITLE_SUFFIX")
@@ -539,25 +666,26 @@ def index():
     )
 
 
-@app.route("/plot_weather/gettoday", methods=["GET"])  # (2)
+@app.route("/plot_weather/gettoday", methods=["GET"])         # (2)
 def getTodayImage():
     """本日データ取得リクエスト(2回以降) JavaScriptからのリクエスト想定
 
     :return: jSON形式(matplotlibでプロットした画像データ(形式: png)のbase64エンコード済み文字列)
          (出力内容) jSON('data:image/png;base64,... base64encoded data ...')
     """
+    app_logger.debug("getTodayImage()")
     try:
         conn = get_dbconn()
         # 本日データプロット画像取得
         imgBase64Encoded = gen_plotimage(conn, year_month=None, logger=app_logger)
     except Exception as exp:
         app_logger.error(exp)
-        return _create_error_response(501)
+        return _create_error_response(CODE_INTERNAL_SERVER_ERROR)
 
     return _create_image_response(imgBase64Encoded)
 
 
-@app.route("/plot_weather/getmonth/<yearmonth>", methods=["GET"])  # (3)
+@app.route("/plot_weather/getmonth/<yearmonth>", methods=["GET"]) # (3)
 def getMonthImage(yearmonth):
     """要求された年月の月間データ取得
 
@@ -577,23 +705,59 @@ def getMonthImage(yearmonth):
     except DateFormatError as dfe:
         # BAD Request
         app_logger.warning(dfe)
-        return _create_error_response(400)
+        return _create_error_response(CODE_BAD_REQUEST)
     except Exception as exp:
         # ここにくるのはDBエラー・バグなど想定
         app_logger.error(exp)
-        return _create_error_response(501)
+        return _create_error_response(CODE_INTERNAL_SERVER_ERROR)
 
     return _create_image_response(imgBase64Encoded)
 
-...一部省略...
+
+@app.route("/plot_weather/getcurrenttimedata", methods=["GET"])
+def getcurrenttimedata():
+    """現在時刻での最新の気象データを取得する"""
+    app_logger.debug("getcurrenttimedata()")
+    try:
+        conn = get_dbconn()
+        # 現在時刻時点の最新の気象データ取得
+        dao = WeatherDao(conn, logger=app_logger)
+        (measurement_time, temp_out, temp_in, humid, pressure) = dao.getLastData(
+            device_name=WEATHER_CONF["DEVICE_NAME"]
+        )
+    except Exception as exp:
+        app_logger.error(exp)
+        return _create_error_response(CODE_INTERNAL_SERVER_ERROR)
+
+    return _create_currtimedatae_response(
+        measurement_time, temp_out, temp_in, humid, pressure
+    )
+
 
 def _create_image_response(img_src):
     resp_obj = {"status": "success"}
     resp_obj["data"] = {"img_src": img_src}
     return jsonify(resp_obj)
 
+
+def _create_currtimedatae_response(mesurement_time, temp_out, temp_in, humid, pressure):
+    resp_obj = {"status": "success"}
+    resp_obj["data"] = {
+        "measurement_time": mesurement_time,
+        "temp_out": temp_out,
+        "temp_in": temp_in,
+        "humid": humid,
+        "pressure": pressure,
+    }
+    return jsonify(resp_obj)
+
+
 def _create_error_response(err_code):
     resp_obj = {"status": "error", "code": err_code}
+    if err_code == CODE_BAD_REQUEST:
+        resp_obj["data"] = {"img_src": BAD_REQUEST_IMAGE_DATA}
+    else:
+        resp_obj["data"] = {"img_src": INTERNAL_SERVER_ERROR_IMAGE_DATA}
     return jsonify(resp_obj)
 ```
 
@@ -613,9 +777,46 @@ HTTP通信ライブラリに**axios**を使っています。
 [templates/showplotweather.html]
 ```html
 ...一部省略...
-
-<div class="col-auto my-1 mx-1">
-     <img class="img-fluid" v-bind:src="imgSrc" width="980" />
+<div id="app">
+    <div class="container">
+        <h3 class="my-3">[[ mainTitle ]]</h3>
+        <form @submit.prevent="submitUpdate">
+            <div class="form-row align-items-center">
+                <div class="col-auto my-1">
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="radioOptions" id="radioToday"
+                            value="{{ str_today }}" v-model="radioChange">
+                        <label class="form-check-label" for="radioToday">{{ str_today }}</label>
+                    </div>
+                </div>
+                <div class="col-auto my-1 ml-1">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="radioOptions" id="radioMonth" value="年月"
+                            v-model="radioChange">
+                        <label class=" form-check-label" for="radioMonth">年月</label>
+                    </div>
+                </div>
+                <div class="col-auto my-1 ml-1">
+                    <label class="my-1 ml-1" for="selectYearMonth">年月選択：</label>
+                    <select class="coustom-select" id="selectYearMonth" v-model="selectedYearMonth"
+                        :disabled="isSelectDisabled">
+                        {% for year_month in year_month_list %}
+                        <option value="{{ year_month }}">{{ year_month }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto my-1 ml-1">
+                    <button class="btn"
+                        v-bind:class="{'btn-primary': !isSubmitDisabled, 'btn-secondary': isSubmitDisabled}"
+                        type="submit" :disabled="isSubmitDisabled">更新</button>
+                </div>
+                <div class="col-auto my-1 ml-2 p-2 bg-warning text-dark">{{ info_today_update_interval }}</div>
+            </div>
+        </form>
+        <div class="col-auto my-1 mx-1">
+            <img class="img-fluid" v-bind:src="imgSrc" width="980" />
+        </div>
+    </div>
 </div>
 
 ...一部省略...
@@ -686,19 +887,33 @@ HTTP通信ライブラリに**axios**を使っています。
                                 console.log('headers:', response.headers);
                                 const resp = response.data.data;
                                 this.imgSrc = resp.img_src;
+                                this.isSubmitDisabled = false;
                             } else {
-                                console.log('Error Response!');
-                                // エラーメッセージ表示など
+                                // BAD REQUES T(400) or INTERNAL SERVER ERROR (500)
+                                const err_code = response.data.code;
+                                console.log('Error code:' + err_code);
+                                const resp = response.data.data;
+                                this.imgSrc = resp.img_src;
+                                // Update disabled
+                                this.isSubmitDisabled = true;
+                                this.isSelectDisabled = true;
+                                if (err_code != 400) {
+                                    alert("サイトのサービスエラーです。しばらくしてから再読込してください。")
+                                }
                             }
-                            this.isSubmitDisabled = false;
                         })
                         .catch(error => {
-                            this.isSubmitDisabled = false;
                             console.log(error);
-                            // エラー画面など
+                            this.isSubmitDisabled = true;
+                            this.isSelectDisabled = true;
+                            // グラフをブランクに設定
+                            this.imgSrc = ''
+                            alert("通信エラー。しばらくしてから再読込してください。")
                         });
                 },
             },
-        })
+        }
+        )
+    </script>
 ```
 以上

@@ -129,16 +129,28 @@
                                 console.log('headers:', response.headers);
                                 const resp = response.data.data;
                                 this.imgSrc = resp.img_src;
+                                this.isSubmitDisabled = false;
                             } else {
-                                console.log('Error Response!');
-                                // エラーメッセージ表示など
+                                // BAD REQUES T(400) or INTERNAL SERVER ERROR (500)
+                                const err_code = response.data.code;
+                                console.log('Error code:' + err_code);
+                                const resp = response.data.data;
+                                this.imgSrc = resp.img_src;
+                                // Update disabled
+                                this.isSubmitDisabled = true;
+                                this.isSelectDisabled = true;
+                                if (err_code != 400) {
+                                    alert("サイトのサービスエラーです。しばらくしてから再読込してください。")
+                                }
                             }
-                            this.isSubmitDisabled = false;
                         })
                         .catch(error => {
-                            this.isSubmitDisabled = false;
                             console.log(error);
-                            // エラー画面など
+                            this.isSubmitDisabled = true;
+                            this.isSelectDisabled = true;
+                            // グラフをブランクに設定
+                            this.imgSrc = ''
+                            alert("通信エラー。しばらくしてから再読込してください。")
                         });
                 },
             },

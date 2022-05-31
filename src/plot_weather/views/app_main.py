@@ -1,5 +1,10 @@
 from flask import abort, g, jsonify, render_template
-from plot_weather import app, app_logger
+from plot_weather import (
+    BAD_REQUEST_IMAGE_DATA,
+    INTERNAL_SERVER_ERROR_IMAGE_DATA,
+    app,
+    app_logger,
+)
 from plot_weather.dao.weathercommon import WEATHER_CONF
 from plot_weather.dao.weatherdao import WeatherDao, weather_db
 from plot_weather.db import sqlite3db
@@ -8,7 +13,7 @@ from plot_weather.plotter.plotterweather import gen_plotimage
 from werkzeug.exceptions import BadRequest
 
 APP_ROOT = app.config["APPLICATION_ROOT"]
-CODE_BAD_REQUEST = 400
+CODE_BAD_REQUEST, CODE_INTERNAL_SERVER_ERROR = 400, 500
 MSG_TITLE_SUFFIX = app.config["TITLE_SUFFIX"]
 MSG_STR_TODAY = app.config["STR_TODAY"]
 
@@ -54,7 +59,7 @@ def index():
         imgBase64Encoded = gen_plotimage(conn, logger=app_logger)
     except Exception as exp:
         app_logger.error(exp)
-        return abort(501)
+        return abort(CODE_INTERNAL_SERVER_ERROR)
 
     strToday = app.config.get("STR_TODAY")
     titleSuffix = app.config.get("TITLE_SUFFIX")
@@ -88,7 +93,7 @@ def getTodayImage():
         imgBase64Encoded = gen_plotimage(conn, year_month=None, logger=app_logger)
     except Exception as exp:
         app_logger.error(exp)
-        return _create_error_response(501)
+        return _create_error_response(CODE_INTERNAL_SERVER_ERROR)
 
     return _create_image_response(imgBase64Encoded)
 
@@ -113,11 +118,11 @@ def getMonthImage(yearmonth):
     except DateFormatError as dfe:
         # BAD Request
         app_logger.warning(dfe)
-        return _create_error_response(400)
+        return _create_error_response(CODE_BAD_REQUEST)
     except Exception as exp:
         # ここにくるのはDBエラー・バグなど想定
         app_logger.error(exp)
-        return _create_error_response(501)
+        return _create_error_response(CODE_INTERNAL_SERVER_ERROR)
 
     return _create_image_response(imgBase64Encoded)
 
@@ -135,7 +140,7 @@ def getcurrenttimedata():
         )
     except Exception as exp:
         app_logger.error(exp)
-        return _create_error_response(501)
+        return _create_error_response(CODE_INTERNAL_SERVER_ERROR)
 
     return _create_currtimedatae_response(
         measurement_time, temp_out, temp_in, humid, pressure
@@ -162,4 +167,8 @@ def _create_currtimedatae_response(mesurement_time, temp_out, temp_in, humid, pr
 
 def _create_error_response(err_code):
     resp_obj = {"status": "error", "code": err_code}
+    if err_code == CODE_BAD_REQUEST:
+        resp_obj["data"] = {"img_src": BAD_REQUEST_IMAGE_DATA}
+    else:
+        resp_obj["data"] = {"img_src": INTERNAL_SERVER_ERROR_IMAGE_DATA}
     return jsonify(resp_obj)

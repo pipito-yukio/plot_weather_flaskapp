@@ -17,9 +17,9 @@ class WeatherPandas:
     FROM
        t_weather
     WHERE
-       did=(SELECT id FROM t_device WHERE name='{}')
+       did=(SELECT id FROM t_device WHERE name=:device_name)
        AND
-       measurement_time >= strftime('%s', date('now'), '-9 hours')
+       measurement_time >= strftime('%s', date(:today), '-9 hours')
     ORDER BY did, measurement_time;
     """
 
@@ -30,11 +30,11 @@ class WeatherPandas:
     FROM
        t_weather
     WHERE
-       did=(SELECT id FROM t_device WHERE name='{}')
+       did=(SELECT id FROM t_device WHERE name=:device_name)
        AND (
-         measurement_time >= strftime('%s', '{}', '-9 hours')
+         measurement_time >= strftime('%s', date(:day_start), '-9 hours')
          AND
-         measurement_time < strftime('%s', '{}', '-9 hours')
+         measurement_time < strftime('%s', date(:day_end), '-9 hours')
        )
     ORDER BY did, measurement_time;
     """
@@ -43,16 +43,32 @@ class WeatherPandas:
         self.conn = conn
         self.logger = logger
 
-    def getTodayDataFrame(self, device_name):
-        sql = self._QUERY_TODAY_DATA.format(device_name)
+    def getTodayDataFrame(self, device_name, today="now"):
+        query_params = {"device_name": device_name, "today": today}
         if self.logger is not None:
-            self.logger.debug("SQL: {}".format(sql))
-        return pd.read_sql(sql, self.conn, parse_dates=["measurement_time"])
+            self.logger.debug(f"query_params: {query_params}")
+
+        return pd.read_sql(
+            self._QUERY_TODAY_DATA,
+            self.conn,
+            params=query_params,
+            parse_dates=["measurement_time"],
+        )
 
     def getMonthDataFrame(self, device_name, s_year_month):
         s_start = s_year_month + "-01"
         s_end_exclude = nextYearMonth(s_start)
-        sql = self._QUERY_MONTH_DATA.format(device_name, s_start, s_end_exclude)
+        query_params = {
+            "device_name": device_name,
+            "day_start": s_start,
+            "day_end": s_end_exclude,
+        }
         if self.logger is not None:
-            self.logger.debug("SQL: {}".format(sql))
-        return pd.read_sql(sql, self.conn, parse_dates=["measurement_time"])
+            self.logger.debug(f"query_params: {query_params}")
+
+        return pd.read_sql(
+            self._QUERY_MONTH_DATA,
+            self.conn,
+            params=query_params,
+            parse_dates=["measurement_time"],
+        )
