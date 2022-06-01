@@ -7,7 +7,7 @@ This module load after app(==__init__.py)
 """
 
 if __name__ == "__main__":
-    has_prod = os.environ.get("ENV") == "production"
+    has_prod = os.environ.get("FLASK_ENV") == "production"
     # app config SERVER_NAME
     srv_host = app.config["SERVER_NAME"]
     srv_hosts = srv_host.split(":")
@@ -20,7 +20,7 @@ if __name__ == "__main__":
             from waitress import serve
 
             app_logger.info("Production start.")
-            serve(app, host=host, port=port)
+            serve(app, host=host, port=port, _quiet=True)
         except ImportError:
             # Production with flask,debug False
             app_logger.info("Development start, without debug.")

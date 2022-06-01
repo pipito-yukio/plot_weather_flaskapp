@@ -24,8 +24,8 @@ app.jinja_env.lstrip_blocks = True
 app.jinja_env.trim_blocks = True
 
 # サーバホストとセッションのドメインが一致しないとブラウザにセッションIDが設定されない
-IP_HOST = os.environ.get("IP_HOST", "localhost:5000")
-has_prod = os.environ.get("ENV") == "production"
+IP_HOST = os.environ.get("IP_HOST", "localhost")
+has_prod = os.environ.get("FLASK_ENV", "development") == "production"
 if has_prod:
     # Production mode
     SERVER_HOST = IP_HOST + ":8080"
