@@ -33,7 +33,7 @@ Matplotlibで生成したグラフをファイル保存せずに直接ブラウ�
 * JavaScriptでは受信したbase64エンコード文字列済みの画像をイメージタグのソースに設定し新たな画像を表示します。
 
 <div style="text-align:center;border:solid;">
-<img src="images/PlotYearMonth_final.png" width="700">
+<img src="images/PlotYearMonth_final.jpg" width="700">
 </div>
 <br/>
 
@@ -51,14 +51,14 @@ Matplotlibで生成したグラフをファイル保存せずに直接ブラウ�
   (例) "2022-03" ==> "202213"
 
 <div style="text-align:center;border:solid;">
-<img src="images/Chome_Dubuge.png" width="700">
+<img src="images/Chome_Dubuge.jpg" width="700">
 </div>
 <br/>
 
 * BAD REQUEST の画像を表示して、更新ボタンを不可に設定。
 
 <div style="text-align:center;border:solid;">
-<img src="images/PlotBadRequest.png" width="700">
+<img src="images/PlotBadRequest.jpg" width="700">
 </div>
 <br/>
 
@@ -761,7 +761,7 @@ def _create_error_response(err_code):
     return jsonify(resp_obj)
 ```
 
-#### 3-5. テンプレートHTML
+### 3-5. テンプレートHTML
 
 HTTP通信ライブラリに**axios**を使っています。
 
@@ -916,4 +916,293 @@ HTTP通信ライブラリに**axios**を使っています。
         )
     </script>
 ```
+
+## 4. アプリを動かす
+
+### 4-1. アプリのClone
+
+* ここではディレクトリ **"~/Examples/python/Github"** にCloneする例を下記に示します。  
+※Clone先については、ご自身の環境に合わせ適宜読み替えてください。
+
+```bash
+$ git clone https://github.com/pipito-yukio/plot_weather_flaskapp.git
+Cloning into 'plot_weather_flaskapp'...
+remote: Enumerating objects: 94, done.
+remote: Counting objects: 100% (94/94), done.
+remote: Compressing objects: 100% (78/78), done.
+remote: Total 94 (delta 15), reused 91 (delta 12), pack-reused 0
+Unpacking objects: 100% (94/94), 1.32 MiB | 4.66 MiB/s, done.
+```
+
+### 4-2. Python仮想環境の作成
+
+* Python仮想環境はホームの直下ではなく専用のデイレクトリを作成したほうが管理しやすくなります。  
+  ここではホーム直下に **py_venv** ディレクトを作成し、その内に **py_flask** の名前で仮想環境を作る例を示します。
+
+```bash
+$ mkdir py_venv
+$ cd py_venv
+$ python3 -m venv py_flask
+```
+
+* **. コマンド** で **py_flask** 仮想環境に入ります [**. py_flask/bin/activate**]   
+* **pip** コマンド自身のアップデートを実行します [pip **install -U pip**]
+
+```bash
+$ . py_flask/bin/activate
+(py_flask) $ pip install -U pip
+Requirement already satisfied: pip in ./py_flask/lib/python3.8/site-packages (21.1.1)
+Collecting pip
+  Downloading pip-22.1.2-py3-none-any.whl (2.1 MB)
+     |████████████████████████████████| 2.1 MB 2.3 MB/s 
+Installing collected packages: pip
+# ...一部省略 ...
+Successfully installed pip-22.1.2
+```
+
+* **py_flask** 仮想環境にアプリの実行に必要なライブラリをインストールします。  
+  pip install **-r ~/Examples/python/Githib/plot_weather_flaskapp/src/requirements.txt**
+
+```bash
+(py_flask) v$ pip install -r ~/Examples/python/Githib/plot_weather_flaskapp/src/requirements.txt 
+Collecting black==22.3.0
+  Downloading black-22.3.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.5 MB)
+# ...一部省略 ...
+Successfully installed Flask-1.1.1 Flask-Bootstrap-3.3.7.1 Flask-Cors-3.0.8 Flask-WTF-0.14.3 Jinja2-2.11.1 MarkupSafe-1.1.1 Pillow-9.1.1 WTForms-2.2.1 Werkzeug-1.0.0 black-22.3.0 click-8.1.3 cycler-0.11.0 dominate-2.5.1 flake8-4.0.1 fonttools-4.33.3 importlib-metadata-4.2.0 isort-5.10.1 itsdangerous-1.1.0 kiwisolver-1.4.2 matplotlib-3.5.2 mccabe-0.6.1 mypy-0.950 mypy-extensions-0.4.3 numpy-1.21.6 packaging-21.3 pandas-1.3.5 pathspec-0.9.0 platformdirs-2.5.2 psycopg2-binary-2.9.1 pycodestyle-2.8.0 pyflakes-2.4.0 pyparsing-3.0.9 python-dateutil-2.8.2 pytz-2022.1 six-1.14.0 tomli-2.0.1 typed-ast-1.5.3 typing_extensions-4.2.0 visitor-0.1.3 waitress-2.0.0 zipp-3.8.0
+```
+
+### 4-3. アプリ用のホスト名の追加
+
+* (1).A /etc/hosts に Flask webアプリ用のホスト名を追加します。  
+  ※念の為 hosts ファイルのバックアップを取っておいてください: sudo cp hosts hosts_org  
+  [追加前] 下記 HP-Z820
+```bash
+$ cat /etc/hosts
+127.0.0.1 localhost
+127.0.0.1 HP-Z820      # このホスト名
+```
+
+* (1).B IPアドレスを調べます: 最初のIPアドレスにFlask Webアプリケーション用のホスト名を追加します。
+
+```bash
+$ hostname -I
+192.168.0.103 172.17.0.1 
+```
+ 
+* (1).C 追加例を下記に示します。ホスト名 "**hp-z820.local**" は全て小文字にします。  
+  ※大文字のホスト名をブラウザのURLに入力しても**全て小文字になります。**
+
+```bash
+$ sudo vi /etc/hosts
+$ cat /etc/hosts
+127.0.0.1 localhost
+127.0.0.1 HP-Z820
+192.168.0.103 hp-z820.local  # 追加
+```
+
+* (1).D すでに最初のIPアドレスにホスト名が割り当てられている場合は  
+   下記例のように "HP-Z820" にスペースを挟んんで **"hp-z820.local" と追記します。**
+
+```bash
+192.168.0.103 HP-Z820 hp-z820.local  # 追加
+```
+
+### 4-4. スタートアップスクリプトの修正
+
+* 利用者PCの環境に合わせて下記スクリプト内の変数を修正します。
+
+  * (1) "**Examples/python/Github**"   <== Clone したディレクトリが異なれば修正する
+  * (2) "**py_venv**"    <== Python仮想環境 ("**py_flask**") の親ディレクトリ異なれば修正する
+
+[plot_weather_flaskapp/**start.sh**]
+```bash
+#!/bin/bash
+
+# ./start.sh                    -> development
+# ./start.sh prod | production  ->production
+
+export PATH_WEATHER_DB=$HOME/Examples/python/Github/plot_weather_flaskapp/db/weather.db  # (1)
+
+env_mode="development"
+if [ $# -eq 0 ]; then
+   :
+else
+   if [[ "$1" = "prod" || "$1" = "production" ]]; then 
+        env_mode="production"
+   fi
+fi
+
+host_name="$(/bin/cat /etc/hostname)"
+IP_HOST_ORG="${host_name}.local"   # ADD host suffix ".local"
+export IP_HOST="${IP_HOST_ORG,,}"  # to lowercase
+export FLASK_ENV=$env_mode
+echo "$IP_HOST with $FLASK_ENV"
+
+. $HOME/py_venv/py_flask/bin/activate                                                    # (2)
+python run.py
+
+deactivate
+```
+
+### 4-5. スタートアップスクリプトの実行
+
+* (1) **start.sh** を引数なしで実行すると**開発モードで Flask が起動します。**  
+  コンソールログの中のURLに注目してください "Running on **```http://hp-z820.local:5000/```**"
+
+```bash
+cd ~/Examples/python/Github/plot_weather_flaskapp/src
+$ ./start.sh 
+yukio@HP-Z820:~/Examples/python/Github/plot_weather_flaskapp/src$ ./start.sh 
+hp-z820.local with 
+/mnt/storage-2/Examples/python/Github/plot_weather_flaskapp/src/plot_weather/log
+{'version': 1, 'disable_existing_loggers': True, 'formatters': {'fileFormatter': {'format': '%(asctime)s %(levelname)s %(filename)s(%(lineno)d)[%(funcName)s] %(message)s', 'datefmt': '%Y-%m-%d %H:%M:%S'}, 'consoleFormatter': {'format': '%(levelname)s %(message)s'}}, 'handlers': {'consoleHandler': {'class': 'logging.StreamHandler', 'level': 'INFO', 'formatter': 'consoleFormatter'}, 'fileHandler': {'class': 'logging.FileHandler', 'level': 'DEBUG', 'formatter': 'fileFormatter', 'filename': '{}/plotweather.log'}}, 'loggers': {'app_main': {'handlers': ['fileHandler'], 'level': 'DEBUG', 'propergate': False}}}
+ * Serving Flask app "plot_weather" (lazy loading)
+ * Environment: development
+ * Debug mode: on
+ * Running on http://hp-z820.local:5000/ (Press CTRL+C to quit)
+ * Restarting with stat
+...一部省略...
+ * Debugger is active!
+ * Debugger PIN: 254-145-470
+```
+
+トップページURL: ```http://hp-z820.local:5000/plot_weather```
+
+<div style="text-align:center;">
+<img src="images/plot_weather_5000.jpg" width="700">
+</div>
+<br/>
+
+* (2) プロダクションモードで起動: start.sh **prod**  
+ 
+```bash
+yukio@HP-Z820:~/Examples/python/Github/plot_weather_flaskapp/src$ ./start.sh prod
+hp-z820.local with 
+/mnt/storage-2/Examples/python/Github/plot_weather_flaskapp/src/plot_weather/log
+{'version': 1, 'disable_existing_loggers': True, 'formatters': {'fileFormatter': {'format': '%(asctime)s %(levelname)s %(filename)s(%(lineno)d)[%(funcName)s] %(message)s', 'datefmt': '%Y-%m-%d %H:%M:%S'}, 'consoleFormatter': {'format': '%(levelname)s %(message)s'}}, 'handlers': {'consoleHandler': {'class': 'logging.StreamHandler', 'level': 'INFO', 'formatter': 'consoleFormatter'}, 'fileHandler': {'class': 'logging.FileHandler', 'level': 'DEBUG', 'formatter': 'fileFormatter', 'filename': '{}/plotweather.log'}}, 'loggers': {'app_main': {'handlers': ['fileHandler'], 'level': 'DEBUG', 'propergate': False}}}
+```
+
+
+トップページURL: ```http://hp-z820.local:8080/plot_weather```
+
+<div style="text-align:center;">
+<img src="images/plot_weather_8080.jpg" width="700">
+</div>
+<br/>
+
+[[問題点]] Webサーバとして **waitress** が起動しますが、リクエスト毎にDEBUGログがコンソールに出力してしまいます。
+
+```bash
+DEBUG:app_main:tupledlist: [('2022-05',), ('2022-04',), ('2022-03',), ('2022-02',), ('2022-01',), ('2021-12',), ('2021-11',)]
+DEBUG:app_main:yearMonthList:['2022-05', '2022-04', '2022-03', '2022-02', '2022-01', '2021-12', '2021-11']
+DEBUG:app_main:query_params: {'device_name': 'esp8266_1', 'today': '2022-05-28'}
+DEBUG:app_main:                       measurement_time  temp_out  temp_in  humid  pressure
+measurement_time                                                           
+2022-05-28 00:06:14 2022-05-28 00:06:14      12.5     23.1   54.8     992.5
+2022-05-28 00:15:59 2022-05-28 00:15:59      12.5     23.0   54.6     992.6
+2022-05-28 00:25:43 2022-05-28 00:25:43      12.6     22.9   54.5     992.7
+2022-05-28 00:35:28 2022-05-28 00:35:28      12.5     22.9   54.4     992.9
+2022-05-28 00:45:11 2022-05-28 00:45:11      12.3     22.8   54.4     992.9
+...                                 ...       ...      ...    ...       ...
+2022-05-28 17:47:37 2022-05-28 17:47:37      13.2     22.7   46.7     993.0
+2022-05-28 17:57:21 2022-05-28 17:57:21      12.5     22.6   46.7     993.2
+2022-05-28 18:07:05 2022-05-28 18:07:05      12.4     22.5   46.8     993.5
+2022-05-28 18:16:50 2022-05-28 18:16:50      12.5     22.5   48.3     993.4
+2022-05-28 18:26:34 2022-05-28 18:26:34      12.5     22.6   48.6     993.4
+
+[114 rows x 5 columns]
+...省略...
+```
+
+* 全てのリクエストログを抑制するには  
+[Python仮想環境]/site-packages/**waitress/\__init\__.py**  
+デフォルト: **_quiet=False**   (A) ==> (B) コンソールログ設定がWaitressログ設定に上書きされてしまう  
+
+```python
+def serve(app, **kw):
+    _server = kw.pop("_server", create_server)  # test shim
+    _quiet = kw.pop("_quiet", False)  # test shim
+    _profile = kw.pop("_profile", False)  # test shim
+    if not _quiet:  # pragma: no cover                       # (A)
+        # idempotent if logging has already been set up
+        logging.basicConfig()                                # (B)
+    server = _server(app, **kw)
+    if not _quiet:  # pragma: no cover
+        server.print_listen("Serving on http://{}:{}")
+    if _profile:  # pragma: no cover
+        profile("server.run()", globals(), locals(), (), False)
+    else:
+        server.run()
+```
+
+[plot_weather/**run.py**]
+
+* (修正前) serve(app, host=host, port=port)
+* (修正後) serve(app, host=host, port=port, **_quiet=True**)  
+  **_quiet=True** を追加することで、起動時のログ以外は一切出力されなくなります。
+
+```python
+    if has_prod:
+        # Production mode
+        try:
+            # Prerequisites: pip install waitress
+            from waitress import serve
+
+            app_logger.info("Production start.")
+            serve(app, host=host, port=port, _quiet=True)
+        except ImportError:
+            # Production with flask,debug False
+            app_logger.info("Development start, without debug.")
+            app.run(host=host, port=port, debug=False)
+```
+
+### 4-6. アプリケーションログについて
+
+* アプリケーションログについては $HOME**webapp/logs/** ディレクトリ配下に起動毎に出力されます。
+```
+$ cd ~/webapp/logs/
+$ ls -lrt
+合計 12
+-rw-rw-r-- 1 yukio yukio 4459  6月  1 18:25 plotweather_202206011825.log
+-rw-rw-r-- 1 yukio yukio 3105  6月  1 18:28 plotweather_202206011827.log
+```
+
+* ログ出力ディレクトリ、ログレベル、出力内容を変更する場合は下記ログ設定ファイルを編集する。
+[plot_wather/**log/logconf_main.json**]
+  * **{}**/plotweather.log -> os.envirion.get("**PATH_WEBAPP_LOGS**", "**webapp/logs**")
+```
+{
+  "version": 1,
+  "disable_existing_loggers": true,
+  "formatters": {
+    "fileFormatter": {
+      "format": "%(asctime)s %(levelname)s %(filename)s(%(lineno)d)[%(funcName)s] %(message)s",
+      "datefmt": "%Y-%m-%d %H:%M:%S"
+    },
+    "consoleFormatter": {
+      "format": "%(levelname)s %(message)s"
+    }
+  },
+  "handlers": {
+    "consoleHandler": {
+      "class": "logging.StreamHandler",
+      "level": "INFO",
+      "formatter": "consoleFormatter"
+    },
+    "fileHandler": {
+      "class": "logging.FileHandler",
+      "level": "DEBUG",
+      "formatter": "fileFormatter",
+      "filename": "{}/plotweather.log"
+    }
+  },
+  "loggers": {
+    "app_main": {
+      "handlers": ["fileHandler"],
+      "level": "DEBUG",                     <== or "INFO"
+      "propergate": false
+    }
+  }
+}
+```  
 以上
