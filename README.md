@@ -238,7 +238,7 @@ export PATH_WEATHER_DB=$PATH_RASPI_BASE/db/weather.db
 
 SQLはSQLite3に特有の関数を使ったものになります。  
 
-[dao/weatherdao.py] ※ログ出力部分は省略
+[src/plot_weather/dao/weatherdao.py] ※ログ出力部分は省略
 ```python
 from ..db.sqlite3conv import strdate2timestamp
 from ..util.dateutil import nextYearMonth
@@ -331,7 +331,7 @@ SQLの違いはプレースフォルダだけになります。DAOクラスは�
 pd.read_sql(sql, self.conn, parse_dates=["measurement_time"])
 ```
 
-[dao/weatherdbwithpandas.py] ※ログ出力部分は省略
+[src/plot_weather/dao/weatherdbwithpandas.py] ※ログ出力部分は省略
 ```python
 class WeatherPandas:
     """Not use did coloumn"""
@@ -400,7 +400,7 @@ class WeatherPandas:
 
 グラフ出力についてはクラスではなく関数として実装しています。
 
-変数 PLOT_CONFは設定ファイル [dao/conf/plot_weather.json] を読み込みしたもので内容は下記の通り。
+変数 PLOT_CONFは設定ファイル [src/plot_weather/dao/conf/plot_weather.json] を読み込みしたもので内容は下記の通り。
 ```json
 {
   "font.family": "IPAexGothic",
@@ -417,7 +417,7 @@ class WeatherPandas:
 }
 ```
 
-変数 WEATHER_CONFは設定ファイル [dao/conf/weather.json] を読み込みしたもので内容は下記の通り。
+変数 WEATHER_CONFは設定ファイル [src/plot_weather/dao/conf/weather.json] を読み込みしたもので内容は下記の通り。
 
 ```json
 {
@@ -443,14 +443,14 @@ HTMLイメージ用ソースの生成部分を一部抜粋
 
 HTML出力側のイメージタグ部分を抜粋
 
-[templates/showplotweather.html]
+[src/plot_weather/templates/showplotweather.html]
 ```html
 <div class="col-auto my-1 mx-1">
      <img class="img-fluid" v-bind:src="imgSrc" width="980" />
 </div>
 ```
 
-[plotter/plotterweather.py] ※ログ出力部分とコメントを一部省略しています
+[src/plot_weather/plotter/plotterweather.py] ※ログ出力部分とコメントを一部省略しています
 
 引数 year_month が未設定の場合は当日データ、設定されている場合は年月データとしてタイトルと時間軸の見出しを切り替えしています。
 
@@ -483,10 +483,18 @@ def gen_plotimage(conn, year_month=None, logger=None):
         )
         # タイムスタンプをデータフレームのインデックスに設定
         df.index = df[PLOT_WEATHER_IDX_COLUMN]
-        # 先頭の測定日付(Pandas Timestamp) から Pythonのdatetimeに変換
-        # https://pandas.pydata.org/pandas-docs/version/0.22/generated/pandas.Timestamp.to_datetime.html
-        first_datetime = df.index[0].to_pydatetime()
-        # 当日の日付文字列 ※一旦 date()オブジェクトに変換して"年月日"を取得
+        if not df.empty:
+            # 先頭の測定日付(Pandas Timestamp) から Pythonのdatetimeに変換
+            # https://pandas.pydata.org/pandas-docs/version/0.22/generated/pandas.Timestamp.to_datetime.html
+            first_datetime = df.index[0].to_pydatetime()
+        else:
+            # No data: Since the broadcast of observation data is every 10 minutes,
+            #          there may be cases where there is no data at the time of execution.
+            if s_today == "now":
+                first_datetime = datetime.now()
+            else:
+                first_datetime = datetime.strptime(s_today, "%Y-%m-%d")
+        # 当日の日付文字列 ※一旦 dateオブジェクトに変換して"年月日"を取得
         s_first_date = first_datetime.date().isoformat()
         # 表示範囲：当日の "00:00:00" から
         x_day_min = strDateToDatetimeTime000000(s_first_date)
@@ -583,7 +591,7 @@ def gen_plotimage(conn, year_month=None, logger=None):
 * (2) JavaScriptからの当日データ取得リクエストをうけ、当日データから画像を生成してjsonで返却します
 * (3) JavaScriptからの年月データ取得リクエストをうけ、指定された年月の月間データから画像を生成してjsonで返却します
 
-[views/app_main.py]
+[src/plot_weather/views/app_main.py]
 ```python
 from flask import abort, g, jsonify, render_template
 from plot_weather import (
@@ -774,7 +782,7 @@ HTTP通信ライブラリに**axios**を使っています。
 * 当日ラジオボタンが選択されると年月セレクトボックスがDisableになります: isSelectDisabled: function ()
 * レスポンスが返却されるまでの間、更新ボタンをDisable(背景を灰色)にします: submitUpdate: function ()
 
-[templates/showplotweather.html]
+[src/plot_weather/templates/showplotweather.html]
 ```html
 ...一部省略...
 <div id="app">
@@ -971,7 +979,24 @@ Collecting black==22.3.0
 Successfully installed Flask-1.1.1 Flask-Bootstrap-3.3.7.1 Flask-Cors-3.0.8 Flask-WTF-0.14.3 Jinja2-2.11.1 MarkupSafe-1.1.1 Pillow-9.1.1 WTForms-2.2.1 Werkzeug-1.0.0 black-22.3.0 click-8.1.3 cycler-0.11.0 dominate-2.5.1 flake8-4.0.1 fonttools-4.33.3 importlib-metadata-4.2.0 isort-5.10.1 itsdangerous-1.1.0 kiwisolver-1.4.2 matplotlib-3.5.2 mccabe-0.6.1 mypy-0.950 mypy-extensions-0.4.3 numpy-1.21.6 packaging-21.3 pandas-1.3.5 pathspec-0.9.0 platformdirs-2.5.2 psycopg2-binary-2.9.1 pycodestyle-2.8.0 pyflakes-2.4.0 pyparsing-3.0.9 python-dateutil-2.8.2 pytz-2022.1 six-1.14.0 tomli-2.0.1 typed-ast-1.5.3 typing_extensions-4.2.0 visitor-0.1.3 waitress-2.0.0 zipp-3.8.0
 ```
 
-### 4-3. アプリ用のホスト名の追加
+### 4-3. Matplotlibグラフの日本語表示
+
+* このアプリではデフォルトの日本語フォントを "**IPAexGothic**" としています。
+もしこれ以外の日本語フォントを使用する場合は、下記ファイルの キー["**font.family**"] に対応する値を利用者PCにインストールされている日本語フォントに置き換えてください。
+
+[src/plot_weather/dao/conf/plot_weather.json]
+```json
+{
+  "font.family": "IPAexGothic",  <==利用者PCにインストールされているフォント名を設定
+  "label.sizes": [10, 9, 9],
+  "...以下部省略..."
+}
+```
+
+### 4-4. アプリ用のホスト名の追加
+
+このアプリは **ラズベリーパイゼロ (ヘッドレスOS)** で動作させる前提で作られているので、IPアドレスはlocalhost以外を想定しています。※但し、アプリの実行はUbuntu、CentOSなどのLinuxであれば下記 (1).Aから(1).Dの対応で動作すると思います。
+
 
 * (1).A /etc/hosts に Flask webアプリ用のホスト名を追加します。  
   ※念の為 hosts ファイルのバックアップを取っておいてください: sudo cp hosts hosts_org  
@@ -1007,7 +1032,7 @@ $ cat /etc/hosts
 192.168.0.103 HP-Z820 hp-z820.local  # 追加
 ```
 
-### 4-4. スタートアップスクリプトの修正
+### 4-5. スタートアップスクリプトの修正
 
 * 利用者PCの環境に合わせて下記スクリプト内の変数を修正します。
 
