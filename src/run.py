@@ -20,6 +20,7 @@ if __name__ == "__main__":
             from waitress import serve
 
             app_logger.info("Production start.")
+            # console log for Reqeust suppress: _quiet=True  
             serve(app, host=host, port=port, _quiet=True)
         except ImportError:
             # Production with flask,debug False
