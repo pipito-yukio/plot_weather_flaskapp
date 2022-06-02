@@ -995,10 +995,10 @@ Successfully installed Flask-1.1.1 Flask-Bootstrap-3.3.7.1 Flask-Cors-3.0.8 Flas
 
 ### 4-4. アプリ用のホスト名の追加
 
-このアプリは **ラズベリーパイゼロ (ヘッドレスOS)** で動作させる前提で作られているので、IPアドレスはlocalhost以外を想定しています。※但し、アプリの実行はUbuntu、CentOSなどのLinuxであれば下記 (1).Aから(1).Dの対応で動作すると思います。
+このアプリは **ラズベリーパイゼロ (ヘッドレスOS)** で動作させる前提で作られているので、IPアドレスはlocalhost以外を想定していますが、Ubuntu、CentOSなどのLinuxであれば下記(A)または(B)の対応で動作します。
 
 
-* (1).A /etc/hosts に Flask webアプリ用のホスト名を追加します。  
+* /etc/hosts に Flask webアプリ用のホスト名を追加します。  
   ※念の為 hosts ファイルのバックアップを取っておいてください: sudo cp hosts hosts_org  
   [追加前] 下記 HP-Z820
 ```bash
@@ -1006,16 +1006,22 @@ $ cat /etc/hosts
 127.0.0.1 localhost
 127.0.0.1 HP-Z820      # このホスト名
 ```
+* (A) このPCのみで動作確認する場合: ホスト名の後ろにスペースを1つあけて "**hp-z820.local**"追記します。  
+  ※大文字のホスト名をブラウザのURLに入力しても**全て小文字になります。**
 
-* (1).B IPアドレスを調べます: 最初のIPアドレスにFlask Webアプリケーション用のホスト名を追加します。
+```bash
+127.0.0.1 localhost
+127.0.0.1 HP-Z820 hp-z820.local # このホスト名
+```
+
+* (B).1 他のPCからアクセスする場合: 最初のIPアドレスにFlask Webアプリケーション用のホスト名を追加します。
 
 ```bash
 $ hostname -I
 192.168.0.103 172.17.0.1 
 ```
  
-* (1).C 追加例を下記に示します。ホスト名 "**hp-z820.local**" は全て小文字にします。  
-  ※大文字のホスト名をブラウザのURLに入力しても**全て小文字になります。**
+* (B).2 追加例を下記に示します。
 
 ```bash
 $ sudo vi /etc/hosts
@@ -1025,12 +1031,6 @@ $ cat /etc/hosts
 192.168.0.103 hp-z820.local  # 追加
 ```
 
-* (1).D すでに最初のIPアドレスにホスト名が割り当てられている場合は  
-   下記例のように "HP-Z820" にスペースを挟んんで **"hp-z820.local" と追記します。**
-
-```bash
-192.168.0.103 HP-Z820 hp-z820.local  # 追加
-```
 
 ### 4-5. スタートアップスクリプトの修正
 
@@ -1039,7 +1039,7 @@ $ cat /etc/hosts
   * (1) "**Examples/python/Github**"   <== Clone したディレクトリが異なれば修正する
   * (2) "**py_venv**"    <== Python仮想環境 ("**py_flask**") の親ディレクトリ異なれば修正する
 
-[plot_weather_flaskapp/**start.sh**]
+[src/plot_weather_flaskapp/**start.sh**]
 ```bash
 #!/bin/bash
 
@@ -1069,7 +1069,7 @@ python run.py
 deactivate
 ```
 
-### 4-5. スタートアップスクリプトの実行
+### 4-6. スタートアップスクリプトの実行
 
 * (1) **start.sh** を引数なしで実行すると**開発モードで Flask が起動します。**  
   コンソールログの中のURLに注目してください "Running on **```http://hp-z820.local:5000/```**"
@@ -1107,7 +1107,6 @@ hp-z820.local with
 {'version': 1, 'disable_existing_loggers': True, 'formatters': {'fileFormatter': {'format': '%(asctime)s %(levelname)s %(filename)s(%(lineno)d)[%(funcName)s] %(message)s', 'datefmt': '%Y-%m-%d %H:%M:%S'}, 'consoleFormatter': {'format': '%(levelname)s %(message)s'}}, 'handlers': {'consoleHandler': {'class': 'logging.StreamHandler', 'level': 'INFO', 'formatter': 'consoleFormatter'}, 'fileHandler': {'class': 'logging.FileHandler', 'level': 'DEBUG', 'formatter': 'fileFormatter', 'filename': '{}/plotweather.log'}}, 'loggers': {'app_main': {'handlers': ['fileHandler'], 'level': 'DEBUG', 'propergate': False}}}
 ```
 
-
 トップページURL: ```http://hp-z820.local:8080/plot_weather```
 
 <div style="text-align:center;">
@@ -1122,7 +1121,7 @@ DEBUG:app_main:tupledlist: [('2022-05',), ('2022-04',), ('2022-03',), ('2022-02'
 DEBUG:app_main:yearMonthList:['2022-05', '2022-04', '2022-03', '2022-02', '2022-01', '2021-12', '2021-11']
 DEBUG:app_main:query_params: {'device_name': 'esp8266_1', 'today': '2022-05-28'}
 DEBUG:app_main:                       measurement_time  temp_out  temp_in  humid  pressure
-measurement_time                                                           
+measurement_time
 2022-05-28 00:06:14 2022-05-28 00:06:14      12.5     23.1   54.8     992.5
 2022-05-28 00:15:59 2022-05-28 00:15:59      12.5     23.0   54.6     992.6
 2022-05-28 00:25:43 2022-05-28 00:25:43      12.6     22.9   54.5     992.7
@@ -1181,7 +1180,7 @@ def serve(app, **kw):
             app.run(host=host, port=port, debug=False)
 ```
 
-### 4-6. アプリケーションログについて
+### 4-7. アプリケーションログについて
 
 * アプリケーションログについては $HOME**webapp/logs/** ディレクトリ配下に起動毎に出力されます。
 ```
