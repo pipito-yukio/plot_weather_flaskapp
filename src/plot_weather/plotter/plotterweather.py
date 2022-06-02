@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime
 from io import BytesIO
 
 from matplotlib import rcParams
@@ -25,15 +26,22 @@ def gen_plotimage(conn, year_month=None, logger=None):
     wpd = WeatherPandas(conn, logger=logger)
     if year_month is None:
         # 本日データ
-        df = wpd.getTodayDataFrame(
-            WEATHER_CONF["DEVICE_NAME"], today=WEATHER_CONF["TODAY"]
-        )
+        s_today = WEATHER_CONF["TODAY"]
+        df = wpd.getTodayDataFrame(WEATHER_CONF["DEVICE_NAME"], today=s_today)
         # タイムスタンプをデータフレームのインデックスに設定
         df.index = df[PLOT_WEATHER_IDX_COLUMN]
-        # 先頭の測定日付(Pandas Timestamp) から Pythonのdatetimeに変換
-        # https://pandas.pydata.org/pandas-docs/version/0.22/generated/pandas.Timestamp.to_datetime.html
-        first_datetime = df.index[0].to_pydatetime()
-        # 当日の日付文字列 ※一旦 date()オブジェクトに変換して"年月日"を取得
+        if not df.empty:
+            # 先頭の測定日付(Pandas Timestamp) から Pythonのdatetimeに変換
+            # https://pandas.pydata.org/pandas-docs/version/0.22/generated/pandas.Timestamp.to_datetime.html
+            first_datetime = df.index[0].to_pydatetime()
+        else:
+            # No data: Since the broadcast of observation data is every 10 minutes,
+            #          there may be cases where there is no data at the time of execution.
+            if s_today == "now":
+                first_datetime = datetime.now()
+            else:
+                first_datetime = datetime.strptime(s_today, "%Y-%m-%d")
+        # 当日の日付文字列 ※一旦 dateオブジェクトに変換して"年月日"を取得
         s_first_date = first_datetime.date().isoformat()
         # 表示範囲：当日の "00:00:00" から
         x_day_min = strDateToDatetimeTime000000(s_first_date)
