@@ -22,7 +22,9 @@ from ..util.dateutil import (
 rcParams["font.family"] = PLOT_CONF["font.family"]
 
 
-def gen_plotimage(conn, year_month=None, logger=None):
+def gen_plotimage(
+    conn, width_pixel=None, height_pixel=None, year_month=None, logger=None
+):
     wpd = WeatherPandas(conn, logger=logger)
     if year_month is None:
         # 本日データ
@@ -63,7 +65,18 @@ def gen_plotimage(conn, year_month=None, logger=None):
         logger.debug(df)
 
     # https://matplotlib.org/stable/api/figure_api.html?highlight=figure#module-matplotlib.figure
-    fig = Figure(figsize=PLOT_CONF["figsize"]["pc"])
+    if width_pixel is not None and height_pixel is not None:
+        # https://matplotlib.org/stable/gallery/subplots_axes_and_figures/figure_size_units.html
+        #   Figure size in pixel
+        px = 1 / rcParams["figure.dpi"]  # pixel in inches
+        # 半分にしないとスマホ側で画像が細かすぎて見づらい
+        px = px / 2
+        fig_width_px, fig_height_px = width_pixel * px, height_pixel * px
+        logger.debug(f"px: {px}")
+        logger.debug(f"fig_width_px: {fig_width_px}, fig_height_px: {fig_height_px}")
+        fig = Figure(figsize=(fig_width_px, fig_height_px))
+    else:
+        fig = Figure(figsize=PLOT_CONF["figsize"]["pc"])
     label_fontsize, ticklabel_fontsize, ticklable_date_fontsize = tuple(
         PLOT_CONF["label.sizes"]
     )
@@ -100,7 +113,7 @@ def gen_plotimage(conn, year_month=None, logger=None):
     )
     ax_temp.set_ylim(PLOT_CONF["ylim"]["temp"])
     ax_temp.set_ylabel("気温 (℃)", fontsize=label_fontsize)
-    ax_temp.legend(loc="upper right")
+    ax_temp.legend(loc="best")
     ax_temp.set_title("気象データ：{}".format(s_title_date))
     # Hide xlabel
     ax_temp.label_outer()
@@ -133,5 +146,6 @@ def gen_plotimage(conn, year_month=None, logger=None):
     buf = BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight")
     data = base64.b64encode(buf.getbuffer()).decode("ascii")
+    logger.debug(f"data.len: {len(data)}")
     img_src = "data:image/png;base64," + data
     return img_src
