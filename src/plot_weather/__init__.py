@@ -25,12 +25,14 @@ app.jinja_env.trim_blocks = True
 
 # サーバホストとセッションのドメインが一致しないとブラウザにセッションIDが設定されない
 IP_HOST = os.environ.get("IP_HOST", "localhost")
+FLASK_PROD_PORT = os.environ.get("FLASK_PROD_PORT", "8080")
 has_prod = os.environ.get("FLASK_ENV", "development") == "production"
 if has_prod:
     # Production mode
-    SERVER_HOST = IP_HOST + ":8080"
+    SERVER_HOST = IP_HOST + ":" + FLASK_PROD_PORT
 else:
     SERVER_HOST = IP_HOST + ":5000"
+app_logger.info("SERVER_HOST: {}".format(SERVER_HOST))
 
 app.config["SERVER_NAME"] = SERVER_HOST
 app.config["APPLICATION_ROOT"] = "/plot_weather"
