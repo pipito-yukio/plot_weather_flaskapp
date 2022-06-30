@@ -17,7 +17,7 @@ class WeatherDao:
     _QUERY_WEATHER_LASTREC = """
 SELECT
   MAX(measurement_time)
-  , strftime('%Y %m %d %H %M', measurement_time, 'unixepoch', 'localtime')
+  , strftime('%Y-%m-%d %H:%M', measurement_time, 'unixepoch', 'localtime')
   , temp_out, temp_in, humid, pressure
 FROM
   t_weather
