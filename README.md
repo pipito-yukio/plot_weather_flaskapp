@@ -456,6 +456,7 @@ HTML出力側のイメージタグ部分を抜粋
 
 ```python
 import base64
+from datetime import datetime
 from io import BytesIO
 
 from matplotlib import rcParams
@@ -471,16 +472,26 @@ from ..util.dateutil import (
     strDateToDatetimeTime000000,
 )
 
+""" 気象データ画像のbase64エンコードテキストデータを出力する """
+
 # 日本語フォント設定
+# https://matplotlib.org/3.1.0/gallery/text_labels_and_annotations/font_family_rc_sgskip.html
 rcParams["font.family"] = PLOT_CONF["font.family"]
 
-def gen_plotimage(conn, year_month=None, logger=None):
+
+def gen_plotimage(
+    conn,
+    width_pixel=None,
+    height_pixel=None,
+    density=None,
+    year_month=None,
+    logger=None,
+):
     wpd = WeatherPandas(conn, logger=logger)
     if year_month is None:
         # 本日データ
-        df = wpd.getTodayDataFrame(
-            WEATHER_CONF["DEVICE_NAME"], today=WEATHER_CONF["TODAY"]
-        )
+        s_today = WEATHER_CONF["TODAY"]
+        df = wpd.getTodayDataFrame(WEATHER_CONF["DEVICE_NAME"], today=s_today)
         # タイムスタンプをデータフレームのインデックスに設定
         df.index = df[PLOT_WEATHER_IDX_COLUMN]
         if not df.empty:
@@ -515,15 +526,33 @@ def gen_plotimage(conn, year_month=None, logger=None):
     if logger is not None:
         logger.debug(df)
 
-    fig = Figure(figsize=PLOT_CONF["figsize"]["pc"])
+    # https://matplotlib.org/stable/api/figure_api.html?highlight=figure#module-matplotlib.figure
+    if width_pixel is not None and height_pixel is not None:
+        # https://matplotlib.org/stable/gallery/subplots_axes_and_figures/figure_size_units.html
+        #   Figure size in pixel
+        px = 1 / rcParams["figure.dpi"]  # pixel in inches
+        # density=1.0 の10インチタブレットはちょうどいい
+        # 画面の小さいスマホのdensityで割る ※densityが大きい端末だとグラフサイズが極端に小さくなる
+        #  いまのところ Pixel-4a ではこれが一番綺麗に表示される
+        px = px / (2.0 if density > 2.0 else density)
+        logger.debug(f"px: {px} / density : {density}")
+        fig_width_px, fig_height_px = width_pixel * px, height_pixel * px
+        logger.debug(f"fig_width_px: {fig_width_px}, fig_height_px: {fig_height_px}")
+        fig = Figure(figsize=(fig_width_px, fig_height_px))
+    else:
+        fig = Figure(figsize=PLOT_CONF["figsize"]["pc"])
     label_fontsize, ticklabel_fontsize, ticklable_date_fontsize = tuple(
         PLOT_CONF["label.sizes"]
     )
     grid_styles = {"linestyle": "- -", "linewidth": 1.0}
     # PC用
+    # TypeError: subplots() got an unexpected keyword argument 'constrained_layout'
     (ax_temp, ax_humid, ax_pressure) = fig.subplots(3, 1, sharex=True)
 
     # サブプロット間の間隔を変更する
+    # Figure(..., constrained_layout=True) と subplots_adjust()は同時に設定できない
+    # UserWarning: This figure was using constrained_layout,
+    #  but that is incompatible with subplots_adjust and/or tight_layout; disabling constrained_layout.
     fig.subplots_adjust(wspace=0.1, hspace=0.1)
     # 軸ラベルなどのフォントサイズを設定
     for ax in [ax_temp, ax_humid, ax_pressure]:
@@ -548,7 +577,7 @@ def gen_plotimage(conn, year_month=None, logger=None):
     )
     ax_temp.set_ylim(PLOT_CONF["ylim"]["temp"])
     ax_temp.set_ylabel("気温 (℃)", fontsize=label_fontsize)
-    ax_temp.legend(loc="upper right")
+    ax_temp.legend(loc="best")
     ax_temp.set_title("気象データ：{}".format(s_title_date))
     # Hide xlabel
     ax_temp.label_outer()
@@ -581,19 +610,22 @@ def gen_plotimage(conn, year_month=None, logger=None):
     buf = BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight")
     data = base64.b64encode(buf.getbuffer()).decode("ascii")
+    logger.debug(f"data.len: {len(data)}")
     img_src = "data:image/png;base64," + data
     return img_src
-```
+    ```
 
 ### 3-4. リクエスト処理
 
 * (1) 当日データを表示する初期画面
 * (2) JavaScriptからの当日データ取得リクエストをうけ、当日データから画像を生成してjsonで返却します
 * (3) JavaScriptからの年月データ取得リクエストをうけ、指定された年月の月間データから画像を生成してjsonで返却します
+* (4) スマートホンからの最新時刻データ取得リクエストを受け、最新時刻のデータをjsonで返却します
+* (5) スマートホンからの当日データグラフ取得リクエストを受け、当日データグラフ画像(base64string)をjsonで返却します
 
 [src/plot_weather/views/app_main.py]
 ```python
-from flask import abort, g, jsonify, render_template
+from flask import abort, g, jsonify, render_template, request
 from plot_weather import (
     BAD_REQUEST_IMAGE_DATA,
     INTERNAL_SERVER_ERROR_IMAGE_DATA,
@@ -608,7 +640,7 @@ from plot_weather.plotter.plotterweather import gen_plotimage
 from werkzeug.exceptions import BadRequest
 
 APP_ROOT = app.config["APPLICATION_ROOT"]
-CODE_BAD_REQUEST, CODE_INTERNAL_SERVER_ERROR = 400, 500
+CODE_BAD_REQUEST, CODE_FORBIDDEN, CODE_INTERNAL_SERVER_ERROR = 400, 403, 500
 MSG_TITLE_SUFFIX = app.config["TITLE_SUFFIX"]
 MSG_STR_TODAY = app.config["STR_TODAY"]
 
@@ -649,7 +681,7 @@ def index():
             device_name=WEATHER_CONF["DEVICE_NAME"],
             start_date=WEATHER_CONF["STA_YEARMONTH"],
         )
-        app_logger.debug("yearMonthList:{}".format(yearMonthList))
+        app_logger.debug(f"yearMonthList:{yearMonthList}")
         # 本日データプロット画像取得
         imgBase64Encoded = gen_plotimage(conn, logger=app_logger)
     except Exception as exp:
@@ -688,7 +720,7 @@ def getTodayImage():
         imgBase64Encoded = gen_plotimage(conn, year_month=None, logger=app_logger)
     except Exception as exp:
         app_logger.error(exp)
-        return _create_error_response(CODE_INTERNAL_SERVER_ERROR)
+        return _create_image_error_response(CODE_INTERNAL_SERVER_ERROR)
 
     return _create_image_response(imgBase64Encoded)
 
@@ -701,7 +733,7 @@ def getMonthImage(yearmonth):
     :return: jSON形式(matplotlibでプロットした画像データ(形式: png)のbase64エンコード済み文字列)
          (出力内容) jSON('data:image/png;base64,... base64encoded data ...')
     """
-    app_logger.debug("yearmonth: {}".format(yearmonth))
+    app_logger.debug(f"yearmonth: {yearmonth}")
     try:
         # リクエストパラメータの妥当性チェック: "YYYY-mm" + "-01"
         chk_yyyymmdd = yearmonth + "-01"
@@ -713,19 +745,29 @@ def getMonthImage(yearmonth):
     except DateFormatError as dfe:
         # BAD Request
         app_logger.warning(dfe)
-        return _create_error_response(CODE_BAD_REQUEST)
+        return _create_image_error_response(CODE_BAD_REQUEST)
     except Exception as exp:
         # ここにくるのはDBエラー・バグなど想定
         app_logger.error(exp)
-        return _create_error_response(CODE_INTERNAL_SERVER_ERROR)
+        return _create_image_error_response(CODE_INTERNAL_SERVER_ERROR)
 
     return _create_image_response(imgBase64Encoded)
 
 
-@app.route("/plot_weather/getcurrenttimedata", methods=["GET"])
-def getcurrenttimedata():
-    """現在時刻での最新の気象データを取得する"""
-    app_logger.debug("getcurrenttimedata()")
+@app.route("/plot_weather/getlastdataforphone", methods=["GET"])  # (4)
+def getLastDataForPhone():
+    """最新の気象データを取得する (スマートホン専用)"""
+    app_logger.debug("getlastdataforphone()")
+    headers = request.headers
+    app_logger.debug(f"headers: {headers}")
+    # トークン必須
+    token_value = app.config.get("HEADER_REQUEST_PHONE_TOKEN_VALUE")
+    req_token_value = headers.get(app.config.get("HEADER_REQUEST_PHONE_TOKEN_KEY"))
+    if req_token_value != token_value:
+        # トークンが一致しなければエラー画面を返却 ※アプリからは同じトークンがセットされている
+        app_logger.warning("Invalid request token!")
+        return abort(CODE_FORBIDDEN)
+
     try:
         conn = get_dbconn()
         # 現在時刻時点の最新の気象データ取得
@@ -735,21 +777,84 @@ def getcurrenttimedata():
         )
     except Exception as exp:
         app_logger.error(exp)
-        return _create_error_response(CODE_INTERNAL_SERVER_ERROR)
+        abort(CODE_INTERNAL_SERVER_ERROR, description=str(exp))
 
-    return _create_currtimedatae_response(
+    return _response_lastdataforphone(
         measurement_time, temp_out, temp_in, humid, pressure
     )
 
 
+@app.route("/plot_weather/gettodayimageforphone", methods=["GET"])  # (5)
+def getTodayImageForPhone():
+    """本日データ取得リクエスト (スマートホン専用)
+
+    :return: jSON形式(matplotlibでプロットした画像データ(形式: png)のbase64エンコード済み文字列)
+         (出力内容) jSON('data:image/png;base64,... base64encoded data ...')
+    """
+    app_logger.debug("getTodayImageForPhone()")
+    headers = request.headers
+    app_logger.debug(f"headers: {headers}")
+    # トークン必須
+    token_value = app.config.get("HEADER_REQUEST_PHONE_TOKEN_VALUE")
+    req_token_value = headers.get(app.config.get("HEADER_REQUEST_PHONE_TOKEN_KEY"))
+    if req_token_value != token_value:
+        app_logger.warning("Invalid request token!")
+        return abort(CODE_FORBIDDEN)
+
+    try:
+        # ヘッダーに表示領域サイズ+密度([width]x[height]x[density])をつけてくる
+        # ※1.トークンチェックを通過しているのでセットされている前提で処理
+        # ※2.途中でエラー (Androidアプリ側のBUG) ならExceptionで補足されJSONでメッセージが返却される
+        img_size = headers.get(app.config.get("HEADER_REQUEST_IMAGE_SIZE_KEY"))
+        app_logger.debug(f"Phone imgSize: {img_size}")
+        img_wd, img_ht, density = 0, 0, 1.0
+        if img_size is not None:
+            sizes = img_size.split("x")
+            img_wd = int(sizes[0])
+            img_ht = int(sizes[1])
+            density = float(sizes[2])
+        app_logger.debug(f"imgWd: {img_wd}, imgHt: {img_ht}, density: {density}")
+
+        conn = get_dbconn()
+        imgBase64Encoded = gen_plotimage(
+            conn,
+            width_pixel=(None if img_wd == 0 else img_wd),
+            height_pixel=(None if img_ht == 0 else img_ht),
+            density=(density if density > 0 else None),
+            year_month=None,
+            logger=app_logger,
+        )
+    except Exception as exp:
+        app_logger.error(exp)
+        abort(CODE_INTERNAL_SERVER_ERROR, description=str(exp))
+
+    return _response_todayimageforphone(imgBase64Encoded)
+
+
 def _create_image_response(img_src):
+    """画像レスポンスを返却する (JavaScript用)"""
     resp_obj = {"status": "success"}
     resp_obj["data"] = {"img_src": img_src}
     return jsonify(resp_obj)
 
 
-def _create_currtimedatae_response(mesurement_time, temp_out, temp_in, humid, pressure):
-    resp_obj = {"status": "success"}
+def _create_image_error_response(err_code):
+    """エラー画像レスポンスを返却する (JavaScript用)"""
+    resp_obj = {"status": "error", "code": err_code}
+    if err_code == CODE_BAD_REQUEST:
+        resp_obj["data"] = {"img_src": BAD_REQUEST_IMAGE_DATA}
+    else:
+        resp_obj["data"] = {"img_src": INTERNAL_SERVER_ERROR_IMAGE_DATA}
+    response = jsonify(resp_obj)
+    # レスポンスコードを指定されたエラーコードで上書きする
+    response.status_code = err_code
+    return response
+
+
+def _response_lastdataforphone(mesurement_time, temp_out, temp_in, humid, pressure):
+    """気象データの最終レコードを返却する (スマホアプリ用)"""
+    resp_obj = {}
+    resp_obj["status"] = {"code": 0, "message": "OK"}
     resp_obj["data"] = {
         "measurement_time": mesurement_time,
         "temp_out": temp_out,
@@ -760,13 +865,25 @@ def _create_currtimedatae_response(mesurement_time, temp_out, temp_in, humid, pr
     return jsonify(resp_obj)
 
 
-def _create_error_response(err_code):
-    resp_obj = {"status": "error", "code": err_code}
-    if err_code == CODE_BAD_REQUEST:
-        resp_obj["data"] = {"img_src": BAD_REQUEST_IMAGE_DATA}
-    else:
-        resp_obj["data"] = {"img_src": INTERNAL_SERVER_ERROR_IMAGE_DATA}
+def _response_todayimageforphone(img_src):
+    """本日データの気象データ画像を返却する (スマホアプリ用)"""
+    resp_obj = {}
+    resp_obj["status"] = {"code": 0, "message": "OK"}
+    resp_obj["data"] = {"img_src": img_src}
     return jsonify(resp_obj)
+
+
+def _error_response_forphone(error):
+    """テキストのエラーレスポンスを返却するする (スマホアプリ用)"""
+    resp_obj = {}
+    resp_obj["status"] = {"code": error.code, "message": error.description}
+    return jsonify(resp_obj)
+
+
+@app.errorhandler(CODE_BAD_REQUEST)
+@app.errorhandler(CODE_INTERNAL_SERVER_ERROR)
+def error_handler(error):
+    return _error_response_forphone(error), error.code
 ```
 
 ### 3-5. テンプレートHTML
