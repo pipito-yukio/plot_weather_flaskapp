@@ -1,5 +1,3 @@
-from http.client import responses
-
 from flask import abort, g, jsonify, render_template, request
 from plot_weather import (
     BAD_REQUEST_IMAGE_DATA,
@@ -177,23 +175,25 @@ def getTodayImageForPhone():
         return abort(CODE_FORBIDDEN)
 
     try:
-        # ヘッダーに表示領域サイズ([width]x[height])をつけてくる
+        # ヘッダーに表示領域サイズ+密度([width]x[height]x[density])をつけてくる
         # ※1.トークンチェックを通過しているのでセットされている前提で処理
         # ※2.途中でエラー (Androidアプリ側のBUG) ならExceptionで補足されJSONでメッセージが返却される
         img_size = headers.get(app.config.get("HEADER_REQUEST_IMAGE_SIZE_KEY"))
         app_logger.debug(f"Phone imgSize: {img_size}")
-        img_wd, img_ht = 0, 0
+        img_wd, img_ht, density = 0, 0, 1.0
         if img_size is not None:
             sizes = img_size.split("x")
             img_wd = int(sizes[0])
             img_ht = int(sizes[1])
-        app_logger.debug(f"imgWd: {img_wd} imgHt: {img_ht}")
+            density = float(sizes[2])
+        app_logger.debug(f"imgWd: {img_wd}, imgHt: {img_ht}, density: {density}")
 
         conn = get_dbconn()
         imgBase64Encoded = gen_plotimage(
             conn,
             width_pixel=(None if img_wd == 0 else img_wd),
             height_pixel=(None if img_ht == 0 else img_ht),
+            density=(density if density > 0 else None),
             year_month=None,
             logger=app_logger,
         )

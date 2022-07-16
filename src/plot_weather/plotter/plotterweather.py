@@ -23,7 +23,12 @@ rcParams["font.family"] = PLOT_CONF["font.family"]
 
 
 def gen_plotimage(
-    conn, width_pixel=None, height_pixel=None, year_month=None, logger=None
+    conn,
+    width_pixel=None,
+    height_pixel=None,
+    density=None,
+    year_month=None,
+    logger=None,
 ):
     wpd = WeatherPandas(conn, logger=logger)
     if year_month is None:
@@ -69,10 +74,12 @@ def gen_plotimage(
         # https://matplotlib.org/stable/gallery/subplots_axes_and_figures/figure_size_units.html
         #   Figure size in pixel
         px = 1 / rcParams["figure.dpi"]  # pixel in inches
-        # 半分にしないとスマホ側で画像が細かすぎて見づらい
-        px = px / 2
+        # density=1.0 の10インチタブレットはちょうどいい
+        # 画面の小さいスマホのdensityで割る ※densityが大きい端末だとグラフサイズが極端に小さくなる
+        #  いまのところ Pixel-4a ではこれが一番綺麗に表示される
+        px = px / (2.0 if density > 2.0 else density)
+        logger.debug(f"px: {px} / density : {density}")
         fig_width_px, fig_height_px = width_pixel * px, height_pixel * px
-        logger.debug(f"px: {px}")
         logger.debug(f"fig_width_px: {fig_width_px}, fig_height_px: {fig_height_px}")
         fig = Figure(figsize=(fig_width_px, fig_height_px))
     else:
