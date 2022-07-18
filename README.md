@@ -1112,7 +1112,7 @@ Successfully installed Flask-1.1.1 Flask-Bootstrap-3.3.7.1 Flask-Cors-3.0.8 Flas
 
 ### 4-4. アプリ用のホスト名の追加
 
-このアプリは **ラズベリーパイゼロ (ヘッドレスOS)** で動作させる前提で作られているので、IPアドレスはlocalhost以外を想定していますが、Ubuntu、CentOSなどのLinuxであれば下記(A)または(B)の対応で動作します。
+IPアドレスはlocalhost以外を想定しています。Ubuntu、CentOSなどのLinuxであれば下記(A)または(B)の対応で動作します。
 
 
 * /etc/hosts に Flask webアプリ用のホスト名を追加します。  
