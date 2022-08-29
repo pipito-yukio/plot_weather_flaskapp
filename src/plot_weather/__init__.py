@@ -1,17 +1,33 @@
+import enum
+import logging
 import os
+import socket
 import uuid
 
+import psycopg2.pool
 from flask import Flask
 
 from plot_weather.log import logsetting
+from plot_weather.util.file_util import read_json
 from plot_weather.util.image_util import image_to_base64encoded
+
+
+class DebugoutRequest(enum.Enum):
+    ARGS = 0
+    HEADERS = 1
+    BOTH = 2
 
 BAD_REQUEST_IMAGE_DATA = None
 INTERNAL_SERVER_ERROR_IMAGE_DATA = None
+# PostgreSQL connection information json file.
+CONF_PATH = os.path.expanduser("~/bin/pigpio/conf")
+DB_CONF_PATH = os.path.join(CONF_PATH, "dbconf.json")
+DB_CONN_MAX = int(os.environ.get("DB_CONN_MAX", "5"))
 
 app = Flask(__name__)
 # ロガーを本アプリ用のものに設定する
 app_logger = logsetting.get_logger("app_main")
+app_logger_debug = (app_logger.getEffectiveLevel() <= logging.DEBUG)
 app.config.from_object("plot_weather.config")
 # HTMLテンプレートに使うメッセージキーをapp.configに読み込み
 app.config.from_pyfile(os.path.join(".", "messages/messages.conf"), silent=False)
@@ -38,8 +54,9 @@ app.config["SERVER_NAME"] = SERVER_HOST
 app.config["APPLICATION_ROOT"] = "/plot_weather"
 # use flask jsonify with japanese message
 app.config["JSON_AS_ASCII"] = False
-app_logger.debug("app.secret_key: {}".format(app.secret_key))
-app_logger.debug("{}".format(app.config))
+if app_logger_debug:
+    app_logger.debug("app.secret_key: {}".format(app.secret_key))
+    app_logger.debug("{}".format(app.config))
 # "BAD REQUEST"用画像のbase64エンコード文字列ファイル
 curr_dir = os.path.dirname(__file__)
 cotent_path = os.path.join(curr_dir, "static", "content")
@@ -50,6 +67,14 @@ file_internal_error = os.path.join(
     cotent_path, "InternalServerError_png_base64encoded.txt"
 )
 INTERNAL_SERVER_ERROR_IMAGE_DATA = image_to_base64encoded(file_internal_error)
+# Database connection pool
+dbconf = read_json(DB_CONF_PATH)
+dbconf["host"] = dbconf["host"].format(hostname=socket.gethostname())
+if app_logger_debug:
+    app_logger.debug(f"dbconf: {dbconf}")
+conn_pool = psycopg2.pool.SimpleConnectionPool(1, DB_CONN_MAX, **dbconf)
+app_logger.info(f"postgreSQL_pool(max={DB_CONN_MAX}): {conn_pool}")
+app.config["postgreSQL_pool"] = conn_pool
 
 # Application main program
 from plot_weather.views import app_main
