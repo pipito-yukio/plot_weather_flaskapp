@@ -1,5 +1,5 @@
-import os
 import json
+import os
 
 
 def gen_imgname(script_filename, dot_ext='.png'):
@@ -7,7 +7,7 @@ def gen_imgname(script_filename, dot_ext='.png'):
 
 
 def read_json(file):
-    with open(file) as fp:
+    with open(file, 'r') as fp:
         data = json.load(fp)
     return data
 
