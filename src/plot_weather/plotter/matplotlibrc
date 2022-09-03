@@ -262,9 +262,9 @@
 #font.size:    10.0
 
 # .cache/matplotlib/fontlist-v330.json
-#2022-03-29 ADD IPA serif font: "name": "IPAexMincho"
+# ADD IPA serif font: "name": "IPAexMincho"
 font.serif:      IPAexMincho, DejaVu Serif, Bitstream Vera Serif, Computer Modern Roman, New Century Schoolbook, Century Schoolbook L, Utopia, ITC Bookman, Bookman, Nimbus Roman No9 L, Times New Roman, Times, Palatino, Charter, serif
-#2022-03-29  ADD IPA sans-serif font: "name": "IPAexGothic"
+# ADD IPA sans-serif font: "name": "IPAexGothic"
 font.sans-serif: IPAexGothic, DejaVu Sans, Bitstream Vera Sans, Computer Modern Sans Serif, Lucida Grande, Verdana, Geneva, Lucid, Arial, Helvetica, Avant Garde, sans-serif
 #font.cursive:    Apple Chancery, Textile, Zapf Chancery, Sand, Script MT, Felipa, Comic Neue, Comic Sans MS, cursive
 #font.fantasy:    Chicago, Charcoal, Impact, Western, Humor Sans, xkcd, fantasy
