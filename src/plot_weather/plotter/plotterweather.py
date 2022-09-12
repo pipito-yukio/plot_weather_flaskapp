@@ -55,10 +55,8 @@ def gen_plot_image(conn, width_pixel=None, height_pixel=None, density=None,
             dao, date_value, logger=logger, logger_debug=logger_debug)
 
     # 図の生成
-    # https://matplotlib.org/stable/api/figure_api.html?highlight=figure#module-matplotlib.figure
     if width_pixel is not None and height_pixel is not None:
-        # https://matplotlib.org/stable/gallery/subplots_axes_and_figures/figure_size_units.html
-        #   Figure size in pixel
+        # Androidスマホは pixel指定
         px = 1 / rcParams["figure.dpi"]  # pixel in inches
         # density=1.0 の10インチタブレットはちょうどいい
         # 画面の小さいスマホのdensityで割る ※densityが大きい端末だとグラフサイズが極端に小さくなる
@@ -70,6 +68,7 @@ def gen_plot_image(conn, width_pixel=None, height_pixel=None, density=None,
             logger.debug(f"fig_width_px: {fig_width_px}, fig_height_px: {fig_height_px}")
         fig = Figure(figsize=(fig_width_px, fig_height_px))
     else:
+        # PCブラウザはinch指定
         fig = Figure(figsize=PLOT_CONF["figsize"]["pc"])
     if logger_debug:
         logger.debug(f"fig: {fig}")
@@ -78,9 +77,6 @@ def gen_plot_image(conn, width_pixel=None, height_pixel=None, density=None,
     (ax_temp, ax_humid, ax_pressure) = fig.subplots(3, 1, sharex=True)
 
     # サブプロット間の間隔を変更する
-    # Figure(..., constrained_layout=True) と subplots_adjust()は同時に設定できない
-    # UserWarning: This figure was using constrained_layout,
-    #  but that is incompatible with subplots_adjust and/or tight_layout; disabling constrained_layout.
     fig.subplots_adjust(wspace=0.1, hspace=0.1)
 
     # 軸ラベルのフォントサイズを設定
@@ -129,11 +125,8 @@ def loadTodayDataFrame(dao, logger=None, logger_debug=False):
     df.index = df[WEATHER_IDX_COLUMN]
     if not df.empty:
         # 先頭の測定日付(Pandas Timestamp) から Pythonのdatetimeに変換
-        # https://pandas.pydata.org/pandas-docs/version/0.22/generated/pandas.Timestamp.to_datetime.html
         first_datetime = df.index[0].to_pydatetime()
     else:
-        # No data: Since the broadcast of observation data is every 10 minutes,
-        #          there may be cases where there is no data at the time of execution.
         if s_today == "now":
             first_datetime = datetime.now()
         else:
@@ -237,7 +230,6 @@ def _axesPressureSetting(ax, df, labelFontSize=10,
         ax.set_xlim(xmax=next_day)
         if before_days == 7:
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
-            # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.tick_params.html
             ax.tick_params(axis='x', labelsize=8.0)
         else:
             # [1,2,3] day
