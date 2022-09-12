@@ -8,27 +8,9 @@ from ..dao.weathercommon import PLOT_CONF, WEATHER_CONF
 import pandas as pd
 from matplotlib import rcParams
 # 日本語フォント設定
-#  IPAexフォント(IPAexGoがインストール済みのであると仮定した場合
-# [A] 叉は [B] のどちらの方法でも指定された日本語フォントが反映される
-#[A]. https://matplotlib.org/3.1.0/gallery/text_labels_and_annotations/font_family_rc_sgskip.html
-#    Configuring the font family
-# rcParams['font.family'] = 'sans-serif'
-# rcParams[font.sans-serif] = ['IPAexGothic'] <<-- リスト
-# ~/[Application root]/plot_weather/dao/conf/plot_weather.json: PLOT_CONF
 rcParams['font.family'] = PLOT_CONF['font.family']
 font_family_font='font.' + PLOT_CONF['font.family']
 rcParams[font_family_font] = PLOT_CONF['japanese.font']
-#[B] "matplotlibrc" ファイルの 14,15,16行目に記載されている方法
-# ## If you wish to change your default style, copy this file to one of the
-# ## following locations:
-# ##     Unix/Linux:
-# ##            $HOME/.config/matplotlib/matplotlibrc
-# ## ...無関係部分省略...
-# ## and edit that copy.
-# 下記(1),(2)のコメントアウトを外す ※オリジナルはコメントアウトされている
-#  (1) font.family: sans-serif
-#      "IPAexGothic" を先頭に追記する
-#  (2) font.sans-serif: IPAexGothic, DejaVu Sans, ..., sans-serif
 import matplotlib.dates as mdates
 from matplotlib.figure import Figure
 from matplotlib.pyplot import setp
@@ -48,7 +30,8 @@ class ImageDateType(enum.Enum):
 
 
 WEATHER_IDX_COLUMN = 'measurement_time'
-fig=None
+GRID_STYLES = {"linestyle": "- -", "linewidth": 1.0}
+
 
 def gen_plot_image(conn, width_pixel=None, height_pixel=None, density=None,
                    image_date_type=ImageDateType.TODAY, date_value=None, logger=None):
@@ -71,6 +54,7 @@ def gen_plot_image(conn, width_pixel=None, height_pixel=None, density=None,
         df, title_date = loadBeforeDaysRangeDataFrame(
             dao, date_value, logger=logger, logger_debug=logger_debug)
 
+    # 図の生成
     # https://matplotlib.org/stable/api/figure_api.html?highlight=figure#module-matplotlib.figure
     if width_pixel is not None and height_pixel is not None:
         # https://matplotlib.org/stable/gallery/subplots_axes_and_figures/figure_size_units.html
@@ -87,16 +71,10 @@ def gen_plot_image(conn, width_pixel=None, height_pixel=None, density=None,
         fig = Figure(figsize=(fig_width_px, fig_height_px))
     else:
         fig = Figure(figsize=PLOT_CONF["figsize"]["pc"])
-
     if logger_debug:
         logger.debug(f"fig: {fig}")
-    label_fontsize, ticklabel_fontsize, ticklable_date_fontsize = tuple(
-        PLOT_CONF["label.sizes"]
-    )
 
-    grid_styles = {"linestyle": "- -", "linewidth": 1.0}
-    # PC用
-    # TypeError: subplots() got an unexpected keyword argument 'constrained_layout'
+    # x軸を共有する3行1列のサブプロット生成
     (ax_temp, ax_humid, ax_pressure) = fig.subplots(3, 1, sharex=True)
 
     # サブプロット間の間隔を変更する
@@ -104,7 +82,9 @@ def gen_plot_image(conn, width_pixel=None, height_pixel=None, density=None,
     # UserWarning: This figure was using constrained_layout,
     #  but that is incompatible with subplots_adjust and/or tight_layout; disabling constrained_layout.
     fig.subplots_adjust(wspace=0.1, hspace=0.1)
-    # 軸ラベルなどのフォントサイズを設定
+
+    # 軸ラベルのフォントサイズを設定
+    label_fontsize, ticklabel_fontsize, ticklable_date_fontsize = PLOT_CONF["label.sizes"]
     for ax in [ax_temp, ax_humid, ax_pressure]:
         setp(ax.get_xticklabels(), fontsize=ticklable_date_fontsize)
         setp(ax.get_yticklabels(), fontsize=ticklabel_fontsize)
@@ -115,17 +95,12 @@ def gen_plot_image(conn, width_pixel=None, height_pixel=None, density=None,
             ax.set_xlim([x_day_min, x_day_max])
 
     # temp_out and temp_in
-    _axesTemperatureSetting(
-        ax_temp, df,
-        labelFontSize=label_fontsize, titleDate=title_date, gridStyles=grid_styles
-    )
+    _axesTemperatureSetting(ax_temp, df, title_date, labelFontSize=label_fontsize)
     # humid
-    _axesHumidSetting(
-        ax_humid, df, labelFontSize=label_fontsize, gridStyles=grid_styles
-    )
+    _axesHumidSetting(ax_humid, df, labelFontSize=label_fontsize)
     # pressure
     _axesPressureSetting(
-        ax_pressure, df, labelFontSize=label_fontsize, gridStyles=grid_styles,
+        ax_pressure, df, labelFontSize=label_fontsize,
         image_date_type=image_date_type, before_days=date_value
     )
 
@@ -214,7 +189,7 @@ def loadBeforeDaysRangeDataFrame(dao, before_days, logger=None, logger_debug=Fal
     return df, s_title_date
 
 
-def _axesTemperatureSetting(ax, df, labelFontSize=None, titleDate=None, gridStyles=None):
+def _axesTemperatureSetting(ax, df, titleDate, labelFontSize=10):
     ax.plot(
         df[WEATHER_IDX_COLUMN], df["temp_out"], color="blue", marker="", label="外気温",
     )
@@ -227,19 +202,21 @@ def _axesTemperatureSetting(ax, df, labelFontSize=None, titleDate=None, gridStyl
     ax.set_title("気象データ：{}".format(titleDate))
     # Hide xlabel
     ax.label_outer()
-    ax.grid(gridStyles)
+    ax.grid(GRID_STYLES)
 
 
-def _axesHumidSetting(ax, df, labelFontSize=None, gridStyles=None):
-    ax.plot(df[WEATHER_IDX_COLUMN], df["humid"], color="green", marker="")
+def _axesHumidSetting(ax, df, labelFontSize=10):
+    ax.plot(
+        df[WEATHER_IDX_COLUMN], df["humid"], color="green", marker=""
+    )
     ax.set_ylim([0, 100])
     ax.set_ylabel("室内湿度 (％)", fontsize=labelFontSize)
     # Hide xlabel
     ax.label_outer()
-    ax.grid(gridStyles)
+    ax.grid(GRID_STYLES)
 
 
-def _axesPressureSetting(ax, df, labelFontSize=None, gridStyles=None,
+def _axesPressureSetting(ax, df, labelFontSize=10,
                          image_date_type=ImageDateType.TODAY, before_days=1):
     global fig
     # リクエストの画像データ型によって軸が変わる
@@ -272,4 +249,4 @@ def _axesPressureSetting(ax, df, labelFontSize=None, gridStyles=None,
     )
     ax.set_ylim(PLOT_CONF["ylim"]["pressure"])
     ax.set_ylabel("hPa", fontsize=labelFontSize)
-    ax.grid(gridStyles)
+    ax.grid(GRID_STYLES)
