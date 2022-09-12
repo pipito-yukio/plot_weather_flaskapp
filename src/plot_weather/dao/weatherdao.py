@@ -8,7 +8,6 @@ from ..util.dateutil import addDayToString, nextYearMonth
 """ 気象データDAOクラス """
 
 HEADER_WEATHER = '"did","measurement_time","temp_out","temp_in","humid","pressure"'
-HEADER_DEVICE = '"id","name"'
 
 
 class WeatherDao:
