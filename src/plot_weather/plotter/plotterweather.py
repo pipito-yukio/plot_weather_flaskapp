@@ -58,9 +58,6 @@ def gen_plot_image(conn, width_pixel=None, height_pixel=None, density=None,
     if width_pixel is not None and height_pixel is not None:
         # Androidスマホは pixel指定
         px = 1 / rcParams["figure.dpi"]  # pixel in inches
-        # density=1.0 の10インチタブレットはちょうどいい
-        # 画面の小さいスマホのdensityで割る ※densityが大きい端末だとグラフサイズが極端に小さくなる
-        #  いまのところ Pixel-4a ではこれが一番綺麗に表示される
         px = px / (2.0 if density > 2.0 else density)
         fig_width_px, fig_height_px = width_pixel * px, height_pixel * px
         if logger_debug:
