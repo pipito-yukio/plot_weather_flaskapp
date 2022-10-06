@@ -132,3 +132,10 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
 <img src="images/Mobile_Errors.png">
 </div>
 <br/>
+
+
+### Raspberry Pi 4 へのインストール方法については下記リポジトリをご覧ください  
+
+<https://github.com/pipito-yukio/raspi4_apps>  
+
+[アプリソース] **src/PlotWeatherForRaspi4**
