@@ -3,8 +3,6 @@
 # ./start.sh                    -> development
 # ./start.sh prod | production  ->production
 
-export PATH_WEATHER_DB=$HOME/Examples/python/Github/plot_weather_flaskapp/db/weather.db
-
 env_mode="development"
 if [ $# -eq 0 ]; then
     :
@@ -20,7 +18,15 @@ export IP_HOST="${IP_HOST_ORG,,}"  # to lowercase
 export FLASK_ENV=$env_mode
 echo "$IP_HOST with $FLASK_ENV"
 
+EXEC_PATH=
+if [ -n "$PATH_PLOT_WEATHER" ]; then
+   EXEC_PATH=$PATH_PLOT_WEATHER
+else
+   EXEC_PATH="$HOME/PlotWeatherForRaspi4"
+fi
+
 . $HOME/py_venv/py_flask/bin/activate
-python run.py
+
+python $EXEC_PATH/run.py
 
 deactivate
