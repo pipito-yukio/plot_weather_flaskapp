@@ -1,10 +1,10 @@
 # 気象データ表示Webアプリケーション
 
-Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画像を出力するアプリについて解説します。  
+Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画像を出力するアプリ。  
 
 * ブラウザ画面： １画面で、初期画面はFlaskアプリで当日画像を含むHTMLを生成する  
   それ以降の操作による画像データ(JSON形式)の表示はJavaScrpitで実行する
-* Androidスマートホン向： ２種類のレスポンス(JSON形式)で、アプリ側で画面に対応するウィジットにデータを表示する
+* Androidスマートホン向け： ２種類のレスポンス(JSON形式)で、アプリ側で画面に対応するウィジットにデータを表示する
 
 ## 気象データについて
 
@@ -13,7 +13,7 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
 * 気象データ表示Webアプリケーションでは、**ラズパイ４に記録されたデータベースから**端末に応じたMatplotlibグラフ画像を生成しbase64エンコード文字列に変換したレスポンスを返却します。
 
 <div style="text-align:center;">
-<img src="images/WeatherDataDisplayWithRaspberryPiZero.png">
+<img src="images/WeatherDataDisplayWithRaspberryPiZero.jpg">
 </div>
 <br/>
 
@@ -55,7 +55,7 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
     ```
 
 <div style="text-align:center;">
-<img src="images/PlotWeather_BrowserVersion.png">
+<img src="images/PlotWeather_BrowserVersion.jpg">
 </div>
 
 #### 2-2. Androidスマートホン向けレスポンス
@@ -64,7 +64,7 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
 (2) グラフ画像表示画面 (中) 今日のデータ、 (右側) 期間データ: [1, 2, 3, 7] 〜 今日  
 
 <div style="text-align:center;">
-<img src="images/PlotWeather_AndroidVersion.png">
+<img src="images/PlotWeather_AndroidVersion.jpg">
 </div>
 <br/>
 
@@ -129,7 +129,7 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
 ```
 
 <div style="text-align:center;">
-<img src="images/Mobile_Errors.png">
+<img src="images/Mobile_Errors.jpg">
 </div>
 <br/>
 
@@ -138,4 +138,32 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
 
 <https://github.com/pipito-yukio/raspi4_apps>  
 
-[アプリソース] **src/PlotWeatherForRaspi4**
+### Webアプリケーションソース
+
+**src/plow_weather**
+
+```
+DAOクラス(PostgreSQL)のコード ※SQLAlchemyは使っていません
+[src/plot_weather/dao]
+  weatherdao.py
+
+Matplotlibのグラフ生成コード
+[src/plot_weather/plotter]
+  plotterweather.py
+
+リクエスト処理コード
+[src/plot_weather/viewer]
+  app_main.py
+
+Flask アプリ初期化、PostgreSQL connection pool の設定等コード
+[src/plot_weather]
+  __init__.py
+
+Waitress(本番用サーバ) & Flask(開発用内蔵サーバ) 起動切り替えコード
+[src/]
+  run.py
+
+Flask 起動シェルスクリプト
+[src/]
+  start.sh
+```
