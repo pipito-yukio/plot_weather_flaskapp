@@ -5,8 +5,8 @@ import socket
 import uuid
 from typing import Dict
 
-from flask import Flask
 from psycopg2.pool import SimpleConnectionPool
+from flask import Flask
 
 from plot_weather.log import logsetting
 from plot_weather.util.file_util import read_json

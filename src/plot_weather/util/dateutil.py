@@ -85,3 +85,16 @@ def nextYearMonth(s_year_month: str) -> str:
         day = int(date_parts[2])
         result = f"{year:04}-{month:02}-{day:02}"
     return result
+
+
+def checkIso8601Date(s_date: str) -> bool:
+    try:
+        datetime.strptime(s_date, FMT_ISO_8601_DATE)
+        return True
+    except ValueError:
+        return False
+
+
+def getTodayIsoDate() -> str:
+    now: datetime = datetime.today()
+    return now.strftime(FMT_ISO_8601_DATE)
