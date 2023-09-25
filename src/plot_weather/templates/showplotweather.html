@@ -4,9 +4,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Plot weather</title>
-    <link rel="stylesheet" type="text/css" href="/static/bootstrap/css/bootstrap.min.css">
-    <link rel="stylesheet" type="text/css" href="/static/highlight/styles/default.min.css">
+    <title>Weahter finder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
 </head>
 
 <body>
@@ -53,11 +52,13 @@
     </div>
     </div>
 
-    <!-- local: bootstrap.js -->
-    <script src="/static/bootstrap/js/bootstrap.min.js"></script>
-    <!-- local: latest stable vue.js -->
-    <script src="/static/vue-2.7.10/vue.js"></script>
-    <script src="/static/axios/axios.min.js"></script>
+    <!-- Downloaded local: bootstrap.js -->
+    <script src="http://{{ ip_host }}/static/js/bootstrap.min.js"></script>
+    <!-- vue.js v2.x
+        https://v2.ja.vuejs.org/v2/guide/installation
+     -->
+    <script src="http://{{ ip_host }}/static/js/vue.min.js"></script>
+    <script src="http://{{ ip_host }}/static/js/axios.min.js"></script>
     <script type="text/javascript">
         //import axios from 'axios';
         url_encoded = 'application/x-www-form-urlencoded';
