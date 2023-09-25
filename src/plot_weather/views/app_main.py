@@ -153,8 +153,8 @@ def getTodayImage() -> Response:
     try:
         conn: connection = get_connection()
         # 本日データプロット画像取得
-        s_today: str = WEATHER_CONF["TODAY"]
         default_device_name: str = WEATHER_CONF["DEVICE_NAME"]
+        s_today: str = WEATHER_CONF["TODAY"]
         if s_today == 'now':
             s_today = date.today().strftime('%Y-%m-%d')
         image_date_params = ImageDateParams(ImageDateType.TODAY)
@@ -336,8 +336,11 @@ def getTodayImageForPhone() -> Response:
     str_img_size: str = _checkPhoneImageSize(headers)
     try:
         conn: connection = get_connection()
+        # 当日はシステム日付
+        s_today = date.today().strftime('%Y-%m-%d')
         image_date_params = ImageDateParams(ImageDateType.TODAY)
         param: Dict[ParamKey, str] = image_date_params.getParam()
+        param[ParamKey.TODAY] = s_today
         param[ParamKey.PHONE_SIZE] = str_img_size
         image_date_params.setParam(param)
         rec_count: int

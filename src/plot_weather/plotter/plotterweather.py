@@ -316,12 +316,8 @@ def gen_plot_image(
     if image_params.getImageDateType() == ImageDateType.TODAY:
         param: Dict[ParamKey, str] = image_params.getParam()
         s_phone_size = param.get(ParamKey.PHONE_SIZE, "")
-        # for Browser version On Development environment
-        # Browser版は当日(システム日)か過去日('YYYY-mm-dd')を指定
-        # 新板のAndroidアプリでは当日のみなのでこのパラメータは設定しない
+        # app_mainで当日が設定される
         s_today: str = param.get(ParamKey.TODAY, "")
-        if s_today == "":
-            s_today = date.today().strftime('%Y-%m-%d')
         if logger is not None and logger_debug:
             logger.debug(f"today: {s_today}, phone_size: {s_phone_size}")
         rec_count, df, title_date, x_day_min, x_day_max = loadTodayDataFrame(
