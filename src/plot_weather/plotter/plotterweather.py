@@ -2,7 +2,7 @@ import base64
 import enum
 import logging
 from typing import Dict, List, Optional, Tuple, Union
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from io import BytesIO
 from io import StringIO
 
@@ -56,15 +56,16 @@ GRID_STYLES: Dict[str, Union[str, float]] = {"linestyle": "- -", "linewidth": 1.
 
 class ImageDateType(enum.Enum):
     """ 日付データ型 """
-    TODAY = 0      #当日データ
-    YEAR_MONTH = 1 #年月データ
-    RANGE = 2      #期間データ: 当日を除く過去日からN日後
+    TODAY = 0      # 当日データ
+    YEAR_MONTH = 1 # 年月データ
+    RANGE = 2      # 期間データ: 当日を含む過去日(検索開始日)からN日後
 
 
 class ParamKey(enum.Enum):
-    START_DAY = "startDay"
+    TODAY = "today"
     YEAR_MONTH = "yearMonth"
     BEFORE_DAYS = "beforeDays"
+    START_DAY = "startDay"
     PHONE_SIZE = "phoneSize"
 
 
@@ -72,7 +73,7 @@ class ImageDateParams(object):
     def __init__(self, imageDateType: ImageDateType = ImageDateType.TODAY):
         self.imageDateType = imageDateType
         self.typeParams: Dict[ImageDateType, Dict[ParamKey, str]] = {
-            ImageDateType.TODAY: {ParamKey.PHONE_SIZE: ""},
+            ImageDateType.TODAY: {ParamKey.TODAY: "", ParamKey.PHONE_SIZE: ""},
             ImageDateType.YEAR_MONTH: {ParamKey.YEAR_MONTH: ""},
             ImageDateType.RANGE: {
                 ParamKey.START_DAY: "",
@@ -102,13 +103,13 @@ def _to_japanese_date(s_date: str) -> str:
 
 
 def loadTodayDataFrame(
-        dao: WeatherDao, device_name: str,
+        dao: WeatherDao, device_name: str, today_iso8601: str,
         logger: Optional[Optional[logging.Logger]] = None, logger_debug: bool = False
 ) -> Tuple[int, Optional[pd.DataFrame], Optional[str], Optional[datetime], Optional[datetime]]:
     # dao return StringIO buffer(line'\n') on csv format with header
     rec_count: int
     csv_buffer: StringIO
-    rec_count, csv_buffer = dao.getTodayData(device_name, require_header=True)
+    rec_count, csv_buffer = dao.getTodayData(device_name, today_iso8601, require_header=True)
     # 件数なし
     if rec_count == 0:
         return rec_count, None, None, None, None
@@ -315,10 +316,16 @@ def gen_plot_image(
     if image_params.getImageDateType() == ImageDateType.TODAY:
         param: Dict[ParamKey, str] = image_params.getParam()
         s_phone_size = param.get(ParamKey.PHONE_SIZE, "")
+        # for Browser version On Development environment
+        # Browser版は当日(システム日)か過去日('YYYY-mm-dd')を指定
+        # 新板のAndroidアプリでは当日のみなのでこのパラメータは設定しない
+        s_today: str = param.get(ParamKey.TODAY, "")
+        if s_today == "":
+            s_today = date.today().strftime('%Y-%m-%d')
         if logger is not None and logger_debug:
-            logger.debug(f"phone_size: {s_phone_size}")
+            logger.debug(f"today: {s_today}, phone_size: {s_phone_size}")
         rec_count, df, title_date, x_day_min, x_day_max = loadTodayDataFrame(
-            dao, device_name, logger=logger, logger_debug=logger_debug
+            dao, device_name, s_today, logger=logger, logger_debug=logger_debug
         )
     elif image_params.getImageDateType() == ImageDateType.YEAR_MONTH:
         # 指定された年月データ

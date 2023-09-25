@@ -1,5 +1,4 @@
 import logging
-from datetime import date
 from io import StringIO
 from typing import List, Tuple, Optional
 from psycopg2.extensions import connection
@@ -189,8 +188,8 @@ WHERE
 
     def getTodayData(self,
                      device_name: str,
+                     s_today: str,
                      require_header: bool = True) -> Tuple[int, Optional[StringIO]]:
-        s_today = date.today().strftime('%Y-%m-%d')
         if self.logger is not None and self.logger_debug:
             self.logger.debug("device_name: {}, today: {}".format(device_name, s_today))
 

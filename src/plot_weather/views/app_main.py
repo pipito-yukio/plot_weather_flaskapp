@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Dict, List, Optional, Tuple, Union
 
 from flask import (
@@ -98,31 +99,40 @@ def index() -> str:
         conn: connection = get_connection()
         # 年月日リスト取得
         dao = WeatherDao(conn, logger=app_logger)
+        default_device_name: str = WEATHER_CONF["DEVICE_NAME"]
         yearMonthList: List[str] = dao.getGroupbyMonths(
-            device_name=WEATHER_CONF["DEVICE_NAME"],
+            device_name=default_device_name,
             start_date=WEATHER_CONF["STA_YEARMONTH"],
         )
-        if app_logger_debug:
-            app_logger.debug(f"yearMonthList:{yearMonthList}")
         # 本日データプロット画像取得
+        # Browser用のリクエストでは開発機環境用にデバイス名と本日を設定ファイルから取得する
+        s_today: str = WEATHER_CONF["TODAY"]
+        if s_today == 'now':
+            s_today = date.today().strftime('%Y-%m-%d')
         image_date_params = ImageDateParams(ImageDateType.TODAY)
-        img_base64_encoded: str = gen_plot_image(
-            conn, image_date_params=image_date_params, logger=app_logger
+        param: Dict[ParamKey, str] = image_date_params.getParam()
+        param[ParamKey.TODAY] = s_today
+        image_date_params.setParam(param)
+        # データ件数, base64画像形式文字列
+        rec_count: int
+        img_base64_encoded: str
+        rec_count, img_base64_encoded = gen_plot_image(
+            conn, default_device_name, image_date_params, logger=app_logger
         )
     except Exception as exp:
         app_logger.error(exp)
         abort(InternalServerError.codde, InternalServerError(original_exception=exp))
 
-    strToday: str = app.config.get("STR_TODAY", "")
+    # strToday: str = app.config.get("STR_TODAY", "")
     titleSuffix: str = app.config.get("TITLE_SUFFIX", "")
-    defaultMainTitle: str = strToday + titleSuffix
+    defaultMainTitle: str = s_today + titleSuffix
     return render_template(
         "showplotweather.html",
         ip_host=app.config["SERVER_NAME"],
         app_root_url=APP_ROOT,
         path_get_today="/gettoday",
         path_get_month="/getmonth/",
-        str_today=strToday,
+        str_today=s_today,
         title_suffix=titleSuffix,
         info_today_update_interval=app.config.get("INFO_TODAY_UPDATE_INTERVAL"),
         default_main_title=defaultMainTitle,
@@ -143,9 +153,19 @@ def getTodayImage() -> Response:
     try:
         conn: connection = get_connection()
         # 本日データプロット画像取得
+        s_today: str = WEATHER_CONF["TODAY"]
+        default_device_name: str = WEATHER_CONF["DEVICE_NAME"]
+        if s_today == 'now':
+            s_today = date.today().strftime('%Y-%m-%d')
         image_date_params = ImageDateParams(ImageDateType.TODAY)
-        img_base64_encoded: str = gen_plot_image(
-            conn, image_date_params, logger=app_logger
+        param: Dict[ParamKey, str] = image_date_params.getParam()
+        param[ParamKey.TODAY] = s_today
+        image_date_params.setParam(param)
+        # データ件数, base64画像形式文字列
+        rec_count: int
+        img_base64_encoded: str
+        rec_count, img_base64_encoded = gen_plot_image(
+            conn, default_device_name, image_date_params, logger=app_logger
         )
     except psycopg2.Error as db_err:
         app_logger.error(db_err)
@@ -173,13 +193,18 @@ def getMonthImage(yearmonth) -> Response:
         # 日付チェック(YYYY-mm-dd): 日付不正の場合例外スロー
         strdate2timestamp(chk_yyyymmdd, raise_error=True)
         conn: connection = get_connection()
+        # Browser用のリクエストでは開発機環境用にデバイス名を設定ファイルから取得する
+        default_device_name: str = WEATHER_CONF["DEVICE_NAME"]
         # 指定年月(year_month)データプロット画像取得
         image_date_params = ImageDateParams(ImageDateType.YEAR_MONTH)
         param: Dict[ParamKey, str] = image_date_params.getParam()
         param[ParamKey.YEAR_MONTH] = yearmonth
         image_date_params.setParam(param)
-        img_base64_encoded: str = gen_plot_image(
-            conn, image_date_params, logger=app_logger
+        # データ件数, base64画像形式文字列
+        rec_count: int
+        img_base64_encoded: str
+        rec_count, img_base64_encoded = gen_plot_image(
+            conn, default_device_name, image_date_params, logger=app_logger
         )
     except DateFormatError as dfe:
         # BAD Request
