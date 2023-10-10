@@ -58,13 +58,12 @@ class DeviceDao(object):
             raise exp
         return devices
 
-    def exists(self, device_name: str) ->bool:
+    def exists(self, device_name: str) -> bool:
         """
         デバイス名が t_deviceテーブルに存在するかチェックする
         :return: 存在したら True
         :raise: DatabaseError
         """
-        result: bool = False
         try:
             cur: cursor
             with self.conn.cursor() as cur:
@@ -73,13 +72,11 @@ class DeviceDao(object):
                 if self.logger is not None:
                     self.logger.debug(f"row: {row}")
                 # 存在したら0以外
-                result = row[0] != 0
+                return row[0] != 0
         except DatabaseError as exp:
             if self.logger is not None:
                 self.logger.warning(exp)
             raise exp
-        return result
-
 
     @classmethod
     def to_dict(cls, devices: List[DeviceRecord]) -> List[Dict]:
