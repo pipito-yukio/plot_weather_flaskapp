@@ -1,161 +1,257 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Weahter finder</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-</head>
-
-<body>
-    <div id="app">
-        <div class="container">
-            <h3 class="my-3">[[ mainTitle ]]</h3>
-            <form @submit.prevent="submitUpdate">
-                <div class="form-row align-items-center">
-                    <div class="col-auto my-1">
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="radioOptions" id="radioToday"
-                                value="{{ str_today }}" v-model="radioChange">
-                            <label class="form-check-label" for="radioToday">{{ str_today }}</label>
-                        </div>
-                    </div>
-                    <div class="col-auto my-1 ml-1">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="radioOptions" id="radioMonth" value="年月"
-                                v-model="radioChange">
-                            <label class=" form-check-label" for="radioMonth">年月</label>
-                        </div>
-                    </div>
-                    <div class="col-auto my-1 ml-1">
-                        <label class="my-1 ml-1" for="selectYearMonth">年月選択：</label>
-                        <select class="coustom-select" id="selectYearMonth" v-model="selectedYearMonth"
-                            :disabled="isSelectDisabled">
-                            {% for year_month in year_month_list %}
-                            <option value="{{ year_month }}">{{ year_month }}</option>
-                            {% endfor %}
+   <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+      <title>Weatherdata viewer</title>
+      <link rel="stylesheet" href="/static/css/bootstrap.min.css" />
+   </head>
+   <body>
+      <div id="app">
+         <div class="container">
+            <h3 class="mt-3 text-center">気象データビューワー (ブラウザ版)</h3>
+            <div class="mt-3 border" style="background-color: lemonchiffon"><!-- START: Search frame -->
+               <form @submit.prevent="submitUpdate">
+                  <div class="row mt-2 p-2 align-items-center"><!-- START: Search frame first paragraph -->
+                     <div class="col-2 text-end">
+                        <label for="selectDeviceList" class="col-form-label">センサー選択</label>
+                     </div>
+                     <div class="col-6">
+                        <select class="form-select" aria-label="取得する気象センサーを選択" id="selectDeviceList" v-model="deviceChange">
+                           {% for device_dict in device_dict_list %} 
+                           <option value="{{ device_dict.name }}">{{ device_dict.description }}</option>
+                           {% endfor %}
                         </select>
-                    </div>
-                    <div class="col-auto my-1 ml-1">
-                        <button class="btn"
-                            v-bind:class="{'btn-primary': !isSubmitDisabled, 'btn-secondary': isSubmitDisabled}"
-                            type="submit" :disabled="isSubmitDisabled">更新</button>
-                    </div>
-                    <div class="col-auto my-1 ml-2 p-2 bg-warning text-dark">{{ info_today_update_interval }}</div>
-                </div>
-            </form>
-            <div class="col-auto my-1 mx-1">
-                <img class="img-fluid" v-bind:src="imgSrc" width="980" />
+                     </div>
+                     <div class="col-auto bg-warning">{{ info_today_update_interval }}</div>
+                  </div>
+                  <div class="row p-2 align-items-center"><!-- START Search frame secondary paragraph -->
+                     <div class="col-2 text-end">
+                        <label for="radioGroup" class="col-form-label">表示データ種別</label>
+                     </div>
+                     <div class="col-10"><!-- START: Secondary paragraph right column 10  -->
+                        <div class="row align-items-center">
+                           <div class="col-auto">
+                              <input class="form-check-input" type="radio" name="radioOptions" id="radioToday" value="today" v-model="radioChange" />
+                              <label class="form-check-label" for="radioToday">当日データ</label>
+                           </div>
+                           <div class="col-auto">
+                              <input class="form-check-input" type="radio" name="radioOptions" id="radioYearMonth" value="yearMonth" v-model="radioChange" />
+                              <label class="form-check-label" for="radioYearMonth">年月データ</label>
+                           </div>
+                           <!-- docment reference: https://ja.vuejs.org/guide/essentials/forms.html -->
+                           <div class="col-auto">
+                              <!-- 年月リストはデバイスが選択されたら取得する -->
+                              <select class="form-select" id="selectYearMonth" v-model="selectedYearMonth" :disabled="isYmSelectDisabled">
+                                 <option v-for="optionItem in optionsYearMonth" :value="optionItem">
+                                    [[optionItem]]
+                                  </option>
+                              </select>
+                           </div>
+                           <div class="col-auto">
+                              <input class="form-check-input" type="radio" name="radioOptions" id="radioComparePrevYear" value="comparePrevYear" v-model="radioChange" />
+                              <label class="form-check-label" for="radioComparePrevYear">前年比較:</label>
+                           </div>
+                           <div class="col-auto">
+                              <!-- 前年比較年月リストはデバイスが選択されたら取得する -->
+                              <select class="form-select" id="selectPrevYearMonth" v-model="selectedPrevYearMonth" :disabled="isPrevYmSelectDisabled">
+                                 <option v-for="optionItem in optionsPrevYearMonth" :value="optionItem">
+                                    [[optionItem]]
+                                  </option>
+                              </select>
+                           </div>
+                           <div class="col-auto my-1 ml-1">
+                              <button type="submit" class="btn" v-bind:class="{'btn-primary': !isSubmitDisabled, 'btn-secondary': isSubmitDisabled}"
+                                 :disabled="isSubmitDisabled">更　新</button>
+                           </div>
+                        </div>
+                     </div><!-- END: Secondary paragraph right column 10  -->
+                  </div><!-- END: Search frame secondary paragraph -->
+               </form>
+            </div><!-- END: Search frame -->
+            <!-- 取得イメージ表示 -->
+            <div class="mt-3 border p-3 text-center" style="background-color: AliceBlue">
+               <img class="col align-self-center" v-bind:src="imgSrc" width="980" />
             </div>
-        </div>
-    </div>
-    </div>
+         </div><!-- END: container -->
+      </div><!-- END: #app -->
 
-    <!-- Downloaded local: bootstrap.js -->
-    <script src="http://{{ ip_host }}/static/js/bootstrap.min.js"></script>
-    <!-- vue.js v2.x
-        https://v2.ja.vuejs.org/v2/guide/installation
-     -->
-    <script src="http://{{ ip_host }}/static/js/vue.min.js"></script>
-    <script src="http://{{ ip_host }}/static/js/axios.min.js"></script>
-    <script type="text/javascript">
-        //import axios from 'axios';
-        url_encoded = 'application/x-www-form-urlencoded';
-        axios.defaults.baseURL = 'http://{{ ip_host }}{{ app_root_url }}';
-        axios.defaults.headers.get['Content-Type'] = url_encoded;
-        axios.defaults.headers.get['Accepts'] = 'application/json'; // Response json
-        // httponly cookie include request 
-        axios.defaults.withCredentials = true;
-        const GET_TODAY_DATA_URL = axios.defaults.baseURL + '{{ path_get_today }}'; // 2回目以降
-        const GET_MONTH_DATA_URL = axios.defaults.baseURL + '{{ path_get_month }}';
-        const STR_TODAY = '{{ str_today }}'
-        const TITLE_SUFFIX = "{{ title_suffix }}";
-        // Vue 2
-        var app = new Vue({
-            el: '#app',
+      <!-- Downloaded local: bootstrap.js -->
+      <script src="/static/js/bootstrap.bundle.min.js"></script>
+      <!-- Vue.js 3.x (production: vue.global.prod.js
+      <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+       -->
+      <script src="/static/js/axios.min.js"></script>
+      <!-- Vue.js 3.x: Optional API -->
+      <script src="/static/js/vue.global.js"></script>
+      <script>
+         //import axios from 'axios';
+         url_encoded = 'application/x-www-form-urlencoded';
+         axios.defaults.baseURL = 'http://{{ ip_host }}{{ app_root_url }}';
+         axios.defaults.headers.get['Content-Type'] = url_encoded;
+         axios.defaults.headers.get['Accepts'] = 'application/json'; // Response json
+         // httponly cookie include request
+         axios.defaults.withCredentials = true;
+         // 更新ボタン押下時のリクエストURL
+         // 当日データ取得UURL
+         const GET_TODAY_DATA_URL = axios.defaults.baseURL + '{{ path_get_today_image }}';
+         // 年月データ取得URL
+         const GET_MONTH_DATA_URL = axios.defaults.baseURL + '{{ path_get_month_image }}';
+         // 前年比較年月データ取得URL
+         const GET_COMP_PREV_DATA_URL = axios.defaults.baseURL + '{{ path_get_comp_prevyear_image }}';
+         // デバイス選択時のリクエストURL
+         //  年月リスト取得(比較用年月リストを含む)
+         const GET_YM_LIST_URL = axios.defaults.baseURL + '{{ path_get_ym_list }}';
+         // ラジオボタン配列
+         const RADIO_VALUES = ['today', 'yearMonth', 'comparePrevYear'];
+
+         // https://ja.vuejs.org/guide/quick-start.html#using-vue-from-cdn
+         //  [API選択] Options: グローバルビルドの使用
+         const { createApp } = Vue
+         createApp({
             delimiters: ['[[', ']]'],
-            data: function () {
-                return {
-                    radioChange: '{{ str_today }}',
-                    mainTitle: '{{ default_main_title }}',
-                    selectedYearMonth: '' /* 年月取得リクエスト時の年月 */,
-                    isSubmitDisabled: false /* true: 通信中, ボタンの背景を灰色 */,
-                    imgSrc: '{{ img_src }}'/* 初回のみ当日のデータ画像がFlask側で設定する */,
-                    status: '',
-                }
+            data() {
+               return {
+                  radioChange: '{{ default_radio }}',
+                  deviceChange: '{{ device_name }}' /* デバイスリスト選択変更 */,
+                  selectedDeviceName: '{{ device_name }}'/* 選択したデバイス名*/,
+                  selectedYearMonth: '' /* 年月取得リクエスト時の年月: 未選択 */,
+                  selectedPrevYearMonth: '' /* 前年比較データ取得リクエスト時の年月: 未選択 */,
+                  isYmSelectDisabled: true /* 年月セレクトボックス */,
+                  isPrevYmSelectDisabled: true /* 前年比較年月セレクトボックス */,
+                  isSubmitDisabled: false /* true: 通信中, ボタンの背景を灰色 */,
+                  optionsYearMonth: [ 
+                     {% for year_month in ym_list %}
+                        '{{year_month}}',
+                     {% endfor %}
+                  ],
+                  optionsPrevYearMonth: [ 
+                     {% for year_month in prev_ym_list %}
+                        '{{year_month}}',
+                     {% endfor %}
+                  ],
+                  imgSrc: '{{ img_src }}'/* 当日のデータ画像 ※デバイス名が存在する場合 */,
+                  status: '',
+                  recCount: '{{ rec_count}}' /*データ件数*/,
+               }
             },
-            created: function () {
-                console.log('created()');
+            created() {
+               console.log('created()');
             },
-            mounted: function () {
-                console.log('mounted()');
-            },
-            computed: {
-                isSelectDisabled: function () {
-                    console.log('isSelectDisabled()');
-                    return this.radioChange == STR_TODAY
-                },
+            computed() {
+               console.log('computed()');
             },
             watch: {
-                radioChange(newval, val) {
-                    console.log('newval:' + newval);
-                    if (newval) {
-                        this.mainTitle = newval + TITLE_SUFFIX;
-                    }
-                },
+               // ラジオボタン(値)チェック変更監視
+               radioChange(newval, val) {
+                  console.log('radioChange.newval:' + newval + ",old:" + val);
+                  if (newval) {
+                     var isYearMonth = (newval == RADIO_VALUES[1]);
+                     var isCompPrev = (newval == RADIO_VALUES[2])
+                     this.isYmSelectDisabled = !isYearMonth;
+                     this.isPrevYmSelectDisabled = !isCompPrev;
+                  }
+               },
+               // デバイス選択(値)変更監視
+               deviceChange(newval, val) {
+                  console.log('deviceChange.newval:' + newval + ",old:" + val);
+                  // サーバーにリクエスト
+                  this.requestGetYearMonthList(newval);
+               }
             },
             methods: {
-                submitUpdate: function () {
-                    console.log('submitUpdate(): ' + this.radioChange + ',selectedYearMonth: ' + this.selectedYearMonth);
-                    reqURL = null;
-                    if (this.radioChange == STR_TODAY) {
-                        reqURL = GET_TODAY_DATA_URL;
-                    } else {
-                        if (this.selectedYearMonth == '') {
-                            return;
-                        }
-                        reqURL = GET_MONTH_DATA_URL + this.selectedYearMonth;
-                    }
-                    this.isSubmitDisabled = true;
-                    axios
-                        .get(reqURL)
-                        .then(response => {
-                            const status = response.data.status;
-                            this.status = status;
-                            console.log('response.status:', status);
-                            if (this.status == 'success') {
-                                console.log('headers:', response.headers);
-                                const resp = response.data.data;
-                                this.imgSrc = resp.img_src;
-                                this.isSubmitDisabled = false;
-                            } else {
-                                // BAD REQUES T(400) or INTERNAL SERVER ERROR (500)
-                                const err_code = response.data.code;
-                                console.log('Error code:' + err_code);
-                                const resp = response.data.data;
-                                this.imgSrc = resp.img_src;
-                                // Update disabled
-                                this.isSubmitDisabled = true;
-                                this.isSelectDisabled = true;
-                                if (err_code != 400) {
-                                    alert("サイトのサービスエラーです。しばらくしてから再読込してください。")
-                                }
-                            }
-                        })
-                        .catch(error => {
-                            console.log(error);
-                            this.isSubmitDisabled = true;
-                            this.isSelectDisabled = true;
-                            // グラフをブランクに設定
-                            this.imgSrc = ''
-                            alert("通信エラー。しばらくしてから再読込してください。")
-                        });
-                },
-            },
-        }
-        )
-    </script>
-</body>
+               submitUpdate() {
+                  console.log('submitUpdate(): ' + this.radioChange);
+                  var requestURL = null;
+                  if (this.radioChange == RADIO_VALUES[1]) {
+                     // 年月データリクエスト
+                     if (this.selectedYearMonth == '') {
+                        return;
+                     }
 
+                     requestURL = GET_MONTH_DATA_URL  + this.selectedDeviceName + "/" + this.selectedYearMonth;
+                  } else if (this.radioChange == RADIO_VALUES[2]) {
+                     // 前年比較データリクエスト
+                     if (this.selectedPrevYearMonth == '') {
+                        return;
+                     }
+
+                     requestURL = GET_COMP_PREV_DATA_URL + this.selectedDeviceName + "/" + this.selectedPrevYearMonth;
+                  } else {
+                     // デフォルト: 当日データ
+                     requestURL = GET_TODAY_DATA_URL + this.selectedDeviceName;
+                  }
+                  console.log('requestURL: ' + requestURL);
+                  this.isSubmitDisabled = true;
+                  axios
+                     .get(requestURL)
+                     .then(response => {
+                        const status = response.data.status;
+                        this.status = status;
+                        console.log('response.status:', status);
+                        if (this.status == 'success') {
+                           console.log('headers:', response.headers);
+                           const resp = response.data.data;
+                           this.imgSrc = resp.img_src;
+                           this.isSubmitDisabled = false;
+                        } else {
+                           // BAD REQUES T(400) or INTERNAL SERVER ERROR (500)
+                           const err_code = response.data.code;
+                           console.log('Error code:' + err_code);
+                           const resp = response.data.data;
+                           this.imgSrc = resp.img_src;
+                           // Update disabled
+                           this.isSubmitDisabled = true;
+                           this.isYmSelectDisabled = true;
+                           this.isPrevYmSelectDisabled = true;
+                           if (err_code != 400) {
+                              alert("サイトのサービスエラーです。しばらくしてから再読込してください。")
+                           }
+                        }
+                     })
+                     .catch(error => {
+                        console.log(error);
+                        this.isSelectDisabled = true;
+                        this.isSubmitDisabled = true;
+                        this.isPrevYmSelectDisabled = true;
+                        // グラフをブランクに設定
+                        this.imgSrc = ''
+                        alert("通信エラー。しばらくしてから再読込してください。")
+                     });
+               },
+               requestGetYearMonthList(device_name) {
+                  console.log('requestGetYearMonthList(' + device_name + ')');
+                  var requestUrlWithParam = GET_YM_LIST_URL + device_name;
+                  axios
+                     .get(requestUrlWithParam)
+                     .then(response => {
+                        const status = response.data.status;
+                        this.status = status;
+                        console.log('response.status:', status);
+                        if (this.status == 'success') {
+                           console.log('headers:', response.headers);
+                           const resp = response.data.data;
+                           console.log('data:', resp);
+                           var ymList = resp.ymList;
+                           var prevYmList = resp.prevYmList;
+                           console.log('ymList:' + ymList);
+                           console.log('prevYmList:' + prevYmList);
+                           this.optionsYearMonth = ymList;
+                           this.optionsPrevYearMonth = prevYmList;
+                           // デバイス名を更新
+                           this.selectedDeviceName = device_name; 
+                        } else {
+                           const err_code = response.data.code;
+                           console.log('Error code:' + err_code);
+                        }
+                     })
+                     .catch(error => {
+                        console.log(error);
+                     });
+                  },
+               },
+            }
+         ).mount('#app')
+      </script>
+   </body>
 </html>

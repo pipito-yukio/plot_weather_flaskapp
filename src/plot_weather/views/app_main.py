@@ -10,18 +10,20 @@ from werkzeug.exceptions import (
 from plot_weather import (BAD_REQUEST_IMAGE_DATA,
                           INTERNAL_SERVER_ERROR_IMAGE_DATA, DebugOutRequest,
                           app, app_logger, app_logger_debug)
-from plot_weather.dao.weathercommon import WEATHER_CONF
 from plot_weather.dao.weatherdao import WeatherDao
 from plot_weather.dao.devicedao import DeviceDao, DeviceRecord
 from plot_weather.db.sqlite3conv import DateFormatError, strdate2timestamp
 from plot_weather.plotter.plotterweather import (
     ImageDateType, gen_plot_image, ImageDateParams, ParamKey
 )
+from plot_weather.plotter.plotterweather_prevcomp import (
+    gen_plot_image as gen_comp_prev_plot_image
+)
 from werkzeug.datastructures import Headers, MultiDict
 import psycopg2
 from psycopg2.pool import SimpleConnectionPool
 from psycopg2.extensions import connection
-import plot_weather.util.dateutil as date_util
+import plot_weather.util.date_util as date_util
 
 APP_ROOT: str = app.config["APPLICATION_ROOT"]
 
@@ -41,6 +43,7 @@ PARAM_DEVICE: str = "device_name"
 PARAM_START_DAY: str = "start_day"
 PARAM_BOFORE_DAYS: str = "before_days"
 PARAM_YEAR_MONTH: str = "year_month"
+
 # リクエストパラメータエラー時のコード: 421番台以降
 # デバイス名: 必須, 長さチェック (1-20byte), 未登録
 DEVICE_LENGTH: int = 20
@@ -93,79 +96,137 @@ def index() -> str:
 
     :return: 本日データ表示HTMLページ (matplotlibでプロットした画像含む)
     """
+    # 前回アプリ実行時のデバイス名がクッキーに存在するか
+    device_in_cookie: str = request.cookies.get(PARAM_DEVICE)
     if app_logger_debug:
-        app_logger.debug(request.path)
+        app_logger.debug(f"{request.path}, cookie.device_name: {device_in_cookie}")
+    
     try:
         conn: connection = get_connection()
-        # 年月日リスト取得
-        dao = WeatherDao(conn, logger=app_logger)
-        default_device_name: str = WEATHER_CONF["DEVICE_NAME"]
-        yearMonthList: List[str] = dao.getGroupbyMonths(
-            device_name=default_device_name,
-            start_date=WEATHER_CONF["STA_YEARMONTH"],
-        )
-        # 本日データプロット画像取得
-        # Browser用のリクエストでは開発機環境用にデバイス名と本日を設定ファイルから取得する
-        s_today: str = WEATHER_CONF["TODAY"]
-        if s_today == 'now':
-            s_today = date.today().strftime('%Y-%m-%d')
-        image_date_params = ImageDateParams(ImageDateType.TODAY)
-        param: Dict[ParamKey, str] = image_date_params.getParam()
-        param[ParamKey.TODAY] = s_today
-        image_date_params.setParam(param)
-        # データ件数, base64画像形式文字列
-        rec_count: int
-        img_base64_encoded: str
-        rec_count, img_base64_encoded = gen_plot_image(
-            conn, default_device_name, image_date_params, logger=app_logger
-        )
+        # センサーデバイスリスト取得
+        device_dao: DeviceDao = DeviceDao(conn, logger=app_logger)
+        devices: List[DeviceRecord] = device_dao.get_devices()
+        device_dict_list: List[Dict[str, str]] = DeviceDao.to_dict_without_id(devices)
+        if app_logger_debug:
+            app_logger.debug(f"device_dict_list:{device_dict_list}")
+        
+        # 前回選択されたデバイス名存在したら関連する年月リストと当日画像をロードする
+        ym_list: List[str] = None
+        prev_ym_list: List[str] = None
+        rec_count: Optional[int] = None
+        img_base64_encoded: str = None
+        if device_in_cookie is not None:
+            # 当日: ブラウザ版は開発環境利用も考慮し最終日付とする
+            conn: connection = get_connection()
+            dao: WeatherDao = WeatherDao(conn, logger=app_logger)
+            last_register_day: Optional[str] = dao.getLastRegisterDay(
+                device_in_cookie)
+            if last_register_day is not None:
+                s_today = last_register_day
+            else:
+                s_today = date.today().strftime('%Y-%m-%d')
+            # 年月リスト
+            ym_list = dao.getGroupByMonths(device_in_cookie) 
+            prev_ym_list = dao.getPrevYearMonthList(device_in_cookie)   
+            image_date_params = ImageDateParams(ImageDateType.TODAY)
+            param: Dict[ParamKey, str] = image_date_params.getParam()
+            param[ParamKey.TODAY] = s_today
+            image_date_params.setParam(param)
+            # データ件数, base64画像形式文字列
+            rec_count, img_base64_encoded = gen_plot_image(
+                conn, device_in_cookie, image_date_params, logger=app_logger
+            )
     except Exception as exp:
         app_logger.error(exp)
-        abort(InternalServerError.codde, InternalServerError(original_exception=exp))
+        abort(InternalServerError.code, InternalServerError(original_exception=exp))
 
-    # strToday: str = app.config.get("STR_TODAY", "")
-    titleSuffix: str = app.config.get("TITLE_SUFFIX", "")
-    defaultMainTitle: str = s_today + titleSuffix
     return render_template(
         "showplotweather.html",
-        ip_host=app.config["SERVER_NAME"],
-        app_root_url=APP_ROOT,
-        path_get_today="/gettoday",
-        path_get_month="/getmonth/",
-        str_today=s_today,
-        title_suffix=titleSuffix,
         info_today_update_interval=app.config.get("INFO_TODAY_UPDATE_INTERVAL"),
-        default_main_title=defaultMainTitle,
-        year_month_list=yearMonthList,
-        img_src=img_base64_encoded,
+        app_root_url=APP_ROOT,
+        ip_host=app.config["SERVER_NAME"],
+        path_get_today_image="/gettodayimage/",
+        path_get_month_image="/getmonthimage/",
+        path_get_comp_prevyear_image="/getcompprevyearimage/",
+        path_get_ym_list="/getyearmonthlistwithdevice/",
+        default_radio='today',
+        device_dict_list=device_dict_list,
+        device_name=device_in_cookie if device_in_cookie is not None else '',
+        ym_list=ym_list if ym_list is not None else [],
+        prev_ym_list=prev_ym_list if prev_ym_list is not None else [],
+        ym_list_loaded=True if ym_list is not None else False,
+        rec_count=rec_count if rec_count is not None else 0,
+        img_src=img_base64_encoded if img_base64_encoded is not None else '',
     )
 
 
-@app.route("/plot_weather/gettoday", methods=["GET"])
-def getTodayImage() -> Response:
-    """本日データ取得リクエスト(2回以降) JavaScriptからのリクエスト想定
+@app.route("/plot_weather/getyearmonthlistwithdevice/<device_name>", methods=["GET"])
+def getYearMonthListWithDevice(device_name) -> Response:
+    """要求されたデバイス名の年月リストと前年比較用年月リストを取得
 
-    :return: jSON形式(matplotlibでプロットした画像データ(形式: png)のbase64エンコード済み文字列)
-         (出力内容) jSON('data:image/png;base64,... base64encoded data ...')
+    :param device_name str: デバイス名 (例) esp8266_1
+    :return: JSON形式のレスポンス
+    (出力例) {"data":{"ymList":[年月リスト],"prevYmList":[前年比較用年月リスト]'}, "status":...)
     """
     if app_logger_debug:
-        app_logger.debug(request.path)
+        app_logger.debug(f"{request.path}, device_name: {device_name}")
+
+    try:
+        conn: connection = get_connection()
+        dao: WeatherDao = WeatherDao(conn, logger=app_logger)
+        # 年月リスト取得
+        ym_list: List[str] = dao.getGroupByMonths(device_name)
+        # 前年比較用年月リスト
+        prev_ym_list: List[str] = dao.getPrevYearMonthList(device_name)
+        result: Dict = {
+            "status": "success",
+            "data": {"ymList": ym_list, "prevYmList": prev_ym_list}
+        }
+    except psycopg2.Error as db_err:
+        app_logger.error(db_err)
+        abort(InternalServerError.code, _set_errormessage(f"559,{db_err}"))
+    except Exception as exp:
+        app_logger.error(exp)
+        return _createErrorImageResponse(InternalServerError.code)
+
+    resp: Response = _make_respose(result, 200)
+    # デバイス名をクッキーにセット
+    # https://flask.palletsprojects.com/en/3.0.x/config/
+    #  PERMANENT_SESSION_LIFETIME: Default: timedelta(days=31) (2678400 seconds)
+    resp.set_cookie(PARAM_DEVICE, device_name)
+    return resp
+
+
+@app.route("/plot_weather/gettodayimage/<device_name>", methods=["GET"])
+def getTodayImage(device_name: str) -> Response:
+    """本日データ取得リクエスト JavaScriptからのリクエスト想定
+
+    :param device_name: デバイス名 ※必須
+    :return: JSON形式(matplotlibでプロットした画像データ(形式: png)のbase64エンコード済み文字列)
+            (出力例) {"data":"image/png;base64,... base64encoded data ...", "rec_count": 件数}
+    """
+    if app_logger_debug:
+        app_logger.debug(f"{request.path}, device_name: {device_name}")
+   
+    # デバイス名 ※必須
     try:
         conn: connection = get_connection()
         # 本日データプロット画像取得
-        default_device_name: str = WEATHER_CONF["DEVICE_NAME"]
-        s_today: str = WEATHER_CONF["TODAY"]
-        if s_today == 'now':
-            s_today = date.today().strftime('%Y-%m-%d')
+        dao: WeatherDao = WeatherDao(conn, logger=app_logger)
+        last_day: str = dao.getLastRegisterDay(device_name)
+        s_today = last_day if last_day is not None else date.today().strftime(
+            '%Y-%m-%d')
         image_date_params = ImageDateParams(ImageDateType.TODAY)
         param: Dict[ParamKey, str] = image_date_params.getParam()
         param[ParamKey.TODAY] = s_today
+        # プラウザ版はなし
+        param[ParamKey.PHONE_SIZE] = None
         image_date_params.setParam(param)
         # データ件数, base64画像形式文字列
         rec_count: int
         img_base64_encoded: str
         rec_count, img_base64_encoded = gen_plot_image(
-            conn, default_device_name, image_date_params, logger=app_logger
+            conn, device_name, image_date_params, logger=app_logger
         )
     except psycopg2.Error as db_err:
         app_logger.error(db_err)
@@ -177,34 +238,34 @@ def getTodayImage() -> Response:
     return _createImageResponse(img_base64_encoded)
 
 
-@app.route("/plot_weather/getmonth/<yearmonth>", methods=["GET"])
-def getMonthImage(yearmonth) -> Response:
+@app.route("/plot_weather/getmonthimage/<device_name>/<yearmonth>", methods=["GET"])
+def getMonthImage(device_name: str, yearmonth: str) -> Response:
     """要求された年月の月間データ取得
 
-    :param yearmonth str: 年月 (例) 2022-01
-    :return: jSON形式(matplotlibでプロットした画像データ(形式: png)のbase64エンコード済み文字列)
-         (出力内容) jSON('data:image/png;base64,... base64encoded data ...')
+    :param device_name: デバイス名
+    :param yearmonth: 年月 (例) 2022-01
+    :return: JSON形式(matplotlibでプロットした画像データ)
     """
     if app_logger_debug:
-        app_logger.debug(request.path)
+        app_logger.debug(f"{request.path}, {device_name}, {yearmonth}")
     try:
         # リクエストパラメータの妥当性チェック: "YYYY-mm" + "-01"
         chk_yyyymmdd = yearmonth + "-01"
         # 日付チェック(YYYY-mm-dd): 日付不正の場合例外スロー
         strdate2timestamp(chk_yyyymmdd, raise_error=True)
         conn: connection = get_connection()
-        # Browser用のリクエストでは開発機環境用にデバイス名を設定ファイルから取得する
-        default_device_name: str = WEATHER_CONF["DEVICE_NAME"]
         # 指定年月(year_month)データプロット画像取得
         image_date_params = ImageDateParams(ImageDateType.YEAR_MONTH)
         param: Dict[ParamKey, str] = image_date_params.getParam()
         param[ParamKey.YEAR_MONTH] = yearmonth
         image_date_params.setParam(param)
+        if app_logger_debug:
+            app_logger.debug(f"param: {param}")
         # データ件数, base64画像形式文字列
         rec_count: int
         img_base64_encoded: str
         rec_count, img_base64_encoded = gen_plot_image(
-            conn, default_device_name, image_date_params, logger=app_logger
+            conn, device_name, image_date_params, logger=app_logger
         )
     except DateFormatError as dfe:
         # BAD Request
@@ -219,6 +280,43 @@ def getMonthImage(yearmonth) -> Response:
         app_logger.error(exp)
         return _createErrorImageResponse(InternalServerError.code)
 
+    #TODO rec_count==0件時のレスボンス
+    return _createImageResponse(img_base64_encoded)
+
+
+@app.route("/plot_weather/getcompprevyearimage/<device_name>/<yearmonth>", methods=["GET"])
+def getcompprevyearimage(device_name, yearmonth) -> Response:
+    """要求された年月の前年比較月間データ取得
+
+    :param device_name: デバイス名
+    :param yearmonth: 年月 (例) 2022-01
+    :return: JSON形式(matplotlibでプロットした画像データ)
+    """
+    if app_logger_debug:
+        app_logger.debug(f"{request.path}, {device_name}, {yearmonth}")
+    try:
+        chk_yyyymmdd = yearmonth + "-01"
+        strdate2timestamp(chk_yyyymmdd, raise_error=True)
+        conn: connection = get_connection()
+        rec_count: int
+        img_base64_encoded: str
+        rec_count, img_base64_encoded = gen_comp_prev_plot_image(
+            conn, device_name, yearmonth, logger=app_logger
+        )
+    except DateFormatError as dfe:
+        # BAD Request
+        app_logger.warning(dfe)
+        return _createErrorImageResponse(BadRequest.code)
+    except psycopg2.Error as db_err:
+        # DBエラー
+        app_logger.error(db_err)
+        abort(InternalServerError.code, _set_errormessage(f"559,{db_err}"))
+    except Exception as exp:
+        # バグ, DBサーバーダウンなど想定
+        app_logger.error(exp)
+        return _createErrorImageResponse(InternalServerError.code)
+
+    #TODO rec_count==0件時のレスボンス
     return _createImageResponse(img_base64_encoded)
 
 
@@ -509,7 +607,7 @@ def _checkBeforeDays(args: MultiDict) -> str:
     if before_days not in [1,2,3,7]:
         abort(BadRequest.code, _set_errormessage(INVALID_BOFORE_DAY))
 
-    return  str(before_days)
+    return str(before_days)
 
 
 def _checkDeviceName(args: MultiDict) -> str:
@@ -667,7 +765,7 @@ def error_handler(error: HTTPException) -> Response:
     return _make_respose(resp_obj, error.code)
 
 
-def _make_respose(resp_obj: Dict, resp_code) -> Response:
+def _make_respose(resp_obj: Dict, resp_code: int) -> Response:
     response = make_response(jsonify(resp_obj), resp_code)
     response.headers["Content-Type"] = "application/json"
     return response
