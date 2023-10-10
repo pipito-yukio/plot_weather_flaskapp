@@ -24,7 +24,7 @@ CONF_PATH: str = os.path.expanduser("~/bin/pigpio/conf")
 DB_CONF_PATH: str = os.path.join(CONF_PATH, "dbconf.json")
 DB_CONN_MAX: int = int(os.environ.get("DB_CONN_MAX", "5"))
 
-app = Flask(__name__, static_url_path='/static')
+app = Flask(__name__)
 # ロガーを本アプリ用のものに設定する
 app_logger: logging.Logger = logsetting.get_logger("app_main")
 app_logger_debug: bool = (app_logger.getEffectiveLevel() <= logging.DEBUG)
@@ -55,18 +55,28 @@ app.config["SERVER_NAME"] = SERVER_HOST
 app.config["APPLICATION_ROOT"] = "/plot_weather"
 # use flask jsonify with japanese message
 app.config["JSON_AS_ASCII"] = False
+# Cookie config
+app.config.update(
+    SESSION_COOKIE_SECURE=False, # ローカル運用
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Strict',
+    SESSION_COOKIE_NAME='plot_weather_cookie_name',
+)
 if app_logger_debug:
     app_logger.debug(f"{app.config}")
 # "BAD REQUEST"用画像のbase64エンコード文字列ファイル
 curr_dir: str = os.path.dirname(__file__)
 cotent_path: str = os.path.join(curr_dir, "static", "content")
-file_bad_request: str = os.path.join(cotent_path, "BadRequest_png_base64encoded.txt")
+file_bad_request: str = os.path.join(
+   cotent_path, "BadRequest_png_base64encoded.txt")
 BAD_REQUEST_IMAGE_DATA: str = image_to_base64encoded(file_bad_request)
 # "Internal Server Error"用画像のbase64エンコード文字列ファイル
 file_internal_error: str = os.path.join(
     cotent_path, "InternalServerError_png_base64encoded.txt"
 )
-INTERNAL_SERVER_ERROR_IMAGE_DATA: str = image_to_base64encoded(file_internal_error)
+INTERNAL_SERVER_ERROR_IMAGE_DATA: str = image_to_base64encoded(
+   file_internal_error
+)
 # Database connection pool
 dbconf: Dict[str, str] = read_json(DB_CONF_PATH)
 dbconf["host"] = dbconf["host"].format(hostname=socket.gethostname())
