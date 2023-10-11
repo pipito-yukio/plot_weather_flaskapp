@@ -156,15 +156,47 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
 ```
 DAOクラス(PostgreSQL)のコード ※SQLAlchemyは使っていません
 [src/plot_weather/dao]
-  weatherdao.py
+  devicedao.py            # デバイス検索DAO
+  weathercommon.py
+  weatherdao.py           # 気象データ検索DAO
+  weatherdao_prevcomp.py  # 前年比較気象データ検索DAO
 
 Matplotlibのグラフ生成コード
 [src/plot_weather/plotter]
-  plotterweather.py
+  plottercommon.py
+  plotterweather.py          # 気象データプロットモジュール
+  plotterweather_prevcomp.py # 前年比較気象データプロットモジュール
 
-リクエスト処理コード
-[src/plot_weather/viewer]
+[src/plot_weather/static/content/] # PCブラウザ向けエラー画像のbase64文字列
+  BadRequest_png_base64encoded.txt
+  InternalServerError_png_base64encoded.txt
+
+[src/plot_weather/static/css] # Bootstrap 5
+  bootstrap.min.css
+  bootstrap.min.css.map
+  bootstrap-grid.min.css
+  bootstrap-reboot.min.css
+  styles.min.css
+
+[src/plot_weather/static/js]
+  axios.min.js
+  axios.min.js.map
+  bootstrap.bundle.min.js
+  bootstrap.bundle.min.js.map
+  vue.global.js                # Vue.js 3
+  vue.global.prod.js           #  production
+
+[src/plot_weather/template]  # PCブラウザ向けHTML
+  showplotweather.html
+
+リクエスト処理コード      # Android端末とPCブラウザ
+[src/plot_weather/viewes]
   app_main.py
+
+[src/plot_weather/util]
+  date_util.py
+  file_util.py
+  image_util.py
 
 Flask アプリ初期化、PostgreSQL connection pool の設定等コード
 [src/plot_weather]
