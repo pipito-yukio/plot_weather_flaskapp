@@ -25,9 +25,9 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
 
 ### 1. Webアプリケーションの構成
 
-* **Flask 2.x** + **Bootstrap 4** + **Vue.js 2 (http通信: axios)**  
+* **Flask 3.0** + **Bootstrap 5** + **Vue.js 3 (http通信: axios)**  
 * Pythonグラフ描画ライブラリ **Matplotlib 3.5**
-* Pythonデータ解析ライブラリ **Pandas 1.3**
+* Pythonデータ解析ライブラリ **Pandas 1.4**
 * Matplotlibで使用する日本語フォント: 最新版 **IPAexフォント**  
   > IPAフォントのダウンロードとインストール方法については下記本家サイトを参照  
   <https://moji.or.jp/ipafont/ipafontdownload/>
@@ -58,10 +58,19 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
 <img src="images/PlotWeather_BrowserVersion.jpg">
 </div>
 
+* 前年比較データ (新機能)  
+2年以上データが蓄積されてきたので、前年度のデータとの比較画像を追加
+<div style="text-align:center;">
+<img src="images/PlotWeather_BrowserVersion_2.jpg">
+</div>
+
+
 #### 2-2. Androidスマートホン向けレスポンス
 
 (1) 最終レコードデータ画面 (左側)   
-(2) グラフ画像表示画面 (中) 今日のデータ、 (右側) 期間データ: [1, 2, 3, 7] 〜 今日  
+(2) グラフ画像表示画面 
+* (中) 当日データ
+* (右側) 期間データ: [1, 2, 3, 7] 〜 本日を含む過去日に遡って検索  
 
 <div style="text-align:center;">
 <img src="images/PlotWeather_AndroidVersion.jpg">
@@ -77,7 +86,8 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
             "measurement_time": "2022-07-29 19:26", 
             "pressure": 1012.6, 
             "temp_in": 26.1, 
-            "temp_out": 24.1
+            "temp_out": 24.1,
+            "rec_count": 1
         }, 
         "status": {
             "code": 0, 
@@ -94,7 +104,8 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
         "data": {
             "img_src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAR0AAADj...
         ...画像データのBase64エンコード文字列 (一部省略)...
-        PxP67hSRmPQAAAABJRU5ErkJggg=="
+        PxP67hSRmPQAAAABJRU5ErkJggg==",
+            "rec_count": 3281
         }, 
         "status": {
             "code": 0, 
