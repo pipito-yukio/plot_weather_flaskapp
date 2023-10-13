@@ -77,6 +77,15 @@ file_internal_error: str = os.path.join(
 INTERNAL_SERVER_ERROR_IMAGE_DATA: str = image_to_base64encoded(
    file_internal_error
 )
+# No Image (初期画面 or レコードなし)
+file_no_image: str = os.path.join(
+    cotent_path, "NoImage_980x600_png_base64encoded.txt"
+)
+NO_IMAGE_DATA: str = image_to_base64encoded(
+    file_no_image
+)
+
+
 # Database connection pool
 dbconf: Dict[str, str] = read_json(DB_CONF_PATH)
 dbconf["host"] = dbconf["host"].format(hostname=socket.gethostname())

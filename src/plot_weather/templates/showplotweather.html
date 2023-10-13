@@ -104,6 +104,8 @@
          const GET_YM_LIST_URL = axios.defaults.baseURL + '{{ path_get_ym_list }}';
          // ラジオボタン配列
          const RADIO_VALUES = ['today', 'yearMonth', 'comparePrevYear'];
+         // No Image画像
+         const NO_IMAGE_SRC = '{{ no_image_src }}';
 
          // https://ja.vuejs.org/guide/quick-start.html#using-vue-from-cdn
          //  [API選択] Options: グローバルビルドの使用
@@ -192,7 +194,12 @@
                         if (this.status == 'success') {
                            console.log('headers:', response.headers);
                            const resp = response.data.data;
-                           this.imgSrc = resp.img_src;
+                           this.recCount = resp.rec_count;
+                           if (this.recCount > 0) {
+                              this.imgSrc = resp.img_src;
+                           } else {
+                              this.imgSrc = NO_IMAGE_SRC;
+                           }
                            this.isSubmitDisabled = false;
                         } else {
                            // BAD REQUES T(400) or INTERNAL SERVER ERROR (500)

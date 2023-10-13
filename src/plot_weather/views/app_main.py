@@ -8,7 +8,9 @@ from werkzeug.exceptions import (
     BadRequest, Forbidden, HTTPException, InternalServerError, NotFound
     )
 from plot_weather import (BAD_REQUEST_IMAGE_DATA,
-                          INTERNAL_SERVER_ERROR_IMAGE_DATA, DebugOutRequest,
+                          INTERNAL_SERVER_ERROR_IMAGE_DATA,
+                          NO_IMAGE_DATA, 
+                          DebugOutRequest,
                           app, app_logger, app_logger_debug)
 from plot_weather.dao.weatherdao import WeatherDao
 from plot_weather.dao.devicedao import DeviceDao, DeviceRecord
@@ -136,28 +138,33 @@ def index() -> str:
             rec_count, img_base64_encoded = gen_plot_image(
                 conn, device_in_cookie, image_date_params, logger=app_logger
             )
+        
+        if rec_count is None or rec_count == 0:
+            # No image
+            img_base64_encoded = NO_IMAGE_DATA    
+
+        return render_template(
+            "showplotweather.html",
+            info_today_update_interval=app.config.get("INFO_TODAY_UPDATE_INTERVAL"),
+            app_root_url=APP_ROOT,
+            ip_host=app.config["SERVER_NAME"],
+            path_get_today_image="/gettodayimage/",
+            path_get_month_image="/getmonthimage/",
+            path_get_comp_prevyear_image="/getcompprevyearimage/",
+            path_get_ym_list="/getyearmonthlistwithdevice/",
+            no_image_src=NO_IMAGE_DATA,
+            default_radio='today',
+            device_dict_list=device_dict_list,
+            device_name=device_in_cookie if device_in_cookie is not None else '',
+            ym_list=ym_list if ym_list is not None else [],
+            prev_ym_list=prev_ym_list if prev_ym_list is not None else [],
+            ym_list_loaded=True if ym_list is not None else False,
+            rec_count=rec_count if rec_count is not None else 0,
+            img_src=img_base64_encoded,
+        )
     except Exception as exp:
         app_logger.error(exp)
         abort(InternalServerError.code, InternalServerError(original_exception=exp))
-
-    return render_template(
-        "showplotweather.html",
-        info_today_update_interval=app.config.get("INFO_TODAY_UPDATE_INTERVAL"),
-        app_root_url=APP_ROOT,
-        ip_host=app.config["SERVER_NAME"],
-        path_get_today_image="/gettodayimage/",
-        path_get_month_image="/getmonthimage/",
-        path_get_comp_prevyear_image="/getcompprevyearimage/",
-        path_get_ym_list="/getyearmonthlistwithdevice/",
-        default_radio='today',
-        device_dict_list=device_dict_list,
-        device_name=device_in_cookie if device_in_cookie is not None else '',
-        ym_list=ym_list if ym_list is not None else [],
-        prev_ym_list=prev_ym_list if prev_ym_list is not None else [],
-        ym_list_loaded=True if ym_list is not None else False,
-        rec_count=rec_count if rec_count is not None else 0,
-        img_src=img_base64_encoded if img_base64_encoded is not None else '',
-    )
 
 
 @app.route("/plot_weather/getyearmonthlistwithdevice/<device_name>", methods=["GET"])
@@ -182,19 +189,18 @@ def getYearMonthListWithDevice(device_name) -> Response:
             "status": "success",
             "data": {"ymList": ym_list, "prevYmList": prev_ym_list}
         }
+        resp: Response = _make_respose(result, 200)
+        # デバイス名をクッキーにセット
+        # https://flask.palletsprojects.com/en/3.0.x/config/
+        #  PERMANENT_SESSION_LIFETIME: Default: timedelta(days=31) (2678400 seconds)
+        resp.set_cookie(PARAM_DEVICE, device_name)
+        return resp
     except psycopg2.Error as db_err:
         app_logger.error(db_err)
         abort(InternalServerError.code, _set_errormessage(f"559,{db_err}"))
     except Exception as exp:
         app_logger.error(exp)
         return _createErrorImageResponse(InternalServerError.code)
-
-    resp: Response = _make_respose(result, 200)
-    # デバイス名をクッキーにセット
-    # https://flask.palletsprojects.com/en/3.0.x/config/
-    #  PERMANENT_SESSION_LIFETIME: Default: timedelta(days=31) (2678400 seconds)
-    resp.set_cookie(PARAM_DEVICE, device_name)
-    return resp
 
 
 @app.route("/plot_weather/gettodayimage/<device_name>", methods=["GET"])
@@ -228,14 +234,13 @@ def getTodayImage(device_name: str) -> Response:
         rec_count, img_base64_encoded = gen_plot_image(
             conn, device_name, image_date_params, logger=app_logger
         )
+        return _createImageResponse(rec_count, img_base64_encoded)
     except psycopg2.Error as db_err:
         app_logger.error(db_err)
         abort(InternalServerError.code, _set_errormessage(f"559,{db_err}"))
     except Exception as exp:
         app_logger.error(exp)
         return _createErrorImageResponse(InternalServerError.code)
-
-    return _createImageResponse(img_base64_encoded)
 
 
 @app.route("/plot_weather/getmonthimage/<device_name>/<yearmonth>", methods=["GET"])
@@ -267,6 +272,7 @@ def getMonthImage(device_name: str, yearmonth: str) -> Response:
         rec_count, img_base64_encoded = gen_plot_image(
             conn, device_name, image_date_params, logger=app_logger
         )
+        return _createImageResponse(rec_count, img_base64_encoded)
     except DateFormatError as dfe:
         # BAD Request
         app_logger.warning(dfe)
@@ -279,9 +285,6 @@ def getMonthImage(device_name: str, yearmonth: str) -> Response:
         # バグ, DBサーバーダウンなど想定
         app_logger.error(exp)
         return _createErrorImageResponse(InternalServerError.code)
-
-    #TODO rec_count==0件時のレスボンス
-    return _createImageResponse(img_base64_encoded)
 
 
 @app.route("/plot_weather/getcompprevyearimage/<device_name>/<yearmonth>", methods=["GET"])
@@ -303,6 +306,7 @@ def getcompprevyearimage(device_name, yearmonth) -> Response:
         rec_count, img_base64_encoded = gen_comp_prev_plot_image(
             conn, device_name, yearmonth, logger=app_logger
         )
+        return _createImageResponse(rec_count, img_base64_encoded)
     except DateFormatError as dfe:
         # BAD Request
         app_logger.warning(dfe)
@@ -315,9 +319,6 @@ def getcompprevyearimage(device_name, yearmonth) -> Response:
         # バグ, DBサーバーダウンなど想定
         app_logger.error(exp)
         return _createErrorImageResponse(InternalServerError.code)
-
-    #TODO rec_count==0件時のレスボンス
-    return _createImageResponse(img_base64_encoded)
 
 
 @app.route("/plot_weather/getlastdataforphone", methods=["GET"])
@@ -666,9 +667,14 @@ def _checkStartDay(args: MultiDict) -> Optional[str]:
         abort(BadRequest.code, _set_errormessage(INVALID_START_DAY))
 
 
-def _createImageResponse(img_src: str) -> Response:
+def _createImageResponse(rec_count: int, img_src: Optional[str]) -> Response:
     """画像レスポンスを返却する (JavaScript用)"""
-    resp_obj = {"status": "success", "data": {"img_src": img_src}}
+    resp_obj = {"status": "success", 
+                "data": {
+                    "img_src": img_src, 
+                    "rec_count": rec_count
+                }
+            }
     return _make_respose(resp_obj, 200)
 
 
