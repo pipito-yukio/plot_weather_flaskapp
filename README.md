@@ -41,30 +41,19 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
 <div style="text-align:center;border:1px solid;margin:1em">
 <img src="images/Browser_0_initPage.jpg">
 </div>
+<br/>
 
 * 年月リストと前年比較リスト取得  
   センサー選択リストから観測データのセンサーを選択するとJavaScriptで年月リストと前年比較リストを受信
 * 当日データ画像取得  
-　更新ボタンを押下すると選択されたセンサーの当日データをJavaScriptで取得しグラフ画面を更新する
+　更新ボタンを押下すると選択されたセンサーの当日データをJavaScriptで当日グラフ画像を取得し画像領域を更新する
 <div style="text-align:center;border:1px solid;margin:1em">
 <img src="images/Browser_1_todayImage.jpg">
 </div>
 
-* 月間データ  
-   赤枠のグラフ領域のみJavaScriptで下記レスポンス(JSON形式)を受信  
-   => HTML の &lt;img src="base64エンコード文字列"&gt; に設定
-
-    ```json
-    {
-    "data": {
-        "img_src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAR0AAADj...
-    ...画像データのBase64エンコード文字列 (一部省略)...
-    PxP67hSRmPQAAAABJRU5ErkJggg=="
-    }, 
-    "status": "success"
-    }
-    ```
-
+* 年月データ画像取得  
+   年月データの年月リストから年月を選択し、更新ボタンを押下するとJavaScriptで選択された年月のグラフ画像を取得し画像領域を更新する
+   
 <div style="text-align:center;border:1px solid;margin:1em">
 <img src="images/Browser_2_ymImage.jpg">
 </div>
