@@ -252,8 +252,8 @@ def _temperaturePlotting(
     :param title_date: タイトル ※日付
     :param label_font_size: ラベルフォントサイズ
     """
-    ax.plot(df[COL_TIME], df["temp_out"], color="blue", marker="", label="外気温")
-    ax.plot(df[COL_TIME], df["temp_in"], color="red", marker="", label="室内気温")
+    ax.plot(df[COL_TIME], df[COL_TEMP_OUT], color="blue", marker="", label="外気温")
+    ax.plot(df[COL_TIME], df[COL_TEMP_IN], color="red", marker="", label="室内気温")
     ax.set_ylim(PLOT_CONF["ylim"]["temp"])
     ax.set_ylabel(Y_LABEL_TEMP, fontsize=label_font_size)
     ax.legend(loc="best")
@@ -269,7 +269,7 @@ def _humidPlotting(ax: Axes, df: pd.DataFrame, label_font_size) -> None:
     :param df:DataFrameオプジェクト
     :param label_font_size: ラベルフォントサイズ
     """
-    ax.plot(df[COL_TIME], df["humid"], color="green", marker="")
+    ax.plot(df[COL_TIME], df[COL_HUMID], color="green", marker="")
     ax.set_ylim(ymin=0., ymax=100.)
     ax.set_ylabel(Y_LABEL_HUMID, fontsize=label_font_size)
     # Hide xlabel
@@ -283,7 +283,7 @@ def _pressurePlotting(ax: Axes, df: pd.DataFrame, label_font_size: int) -> None:
     :param df:DataFrameオプジェクト
     :param label_font_size: ラベルフォントサイズ
     """
-    ax.plot(df[COL_TIME], df["pressure"], color="fuchsia", marker="")
+    ax.plot(df[COL_TIME], df[COL_PRESSURE], color="fuchsia", marker="")
     ax.set_ylim(PLOT_CONF["ylim"]["pressure"])
     ax.set_ylabel(Y_LABEL_PRESSURE, fontsize=label_font_size)
 
@@ -311,7 +311,7 @@ def _axesPressureSettingWithBeforeDays(
         ax.tick_params(axis='x', labelsize=x_date_tick_font_size - 1)
     else:
         # [1,2,3] day
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d %H:%M"))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d %H"))
         ax.tick_params(axis='x', labelsize=x_date_tick_font_size - 1, labelrotation=45)
 
 
@@ -375,7 +375,7 @@ def make_graph(df: DataFrame, image_params: ImageDateParams,
     ax_temp: Axes
     ax_humid: Axes
     ax_pressure: Axes
-    (ax_temp, ax_humid, ax_pressure) = fig.subplots(nrows=3, ncols=1, sharex='row')
+    (ax_temp, ax_humid, ax_pressure) = fig.subplots(nrows=3, ncols=1, sharex=True)
     for ax in [ax_temp, ax_humid, ax_pressure]:
         ax.grid(**GRID_STYLES)
 
