@@ -1,6 +1,6 @@
 {
   "font.family": "sans-serif",
-  "japanese.font": ["IPAexGothic"," Noto Sans CJK JP"],
+  "japanese.font": ["IPAexGothic"],
   "label.sizes": [10, 9, 9],
   "figsize": {
     "pc": [9.8, 6.4]
