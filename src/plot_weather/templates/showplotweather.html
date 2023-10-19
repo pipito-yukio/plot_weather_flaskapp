@@ -13,10 +13,10 @@
             <div class="mt-3 border" style="background-color: lemonchiffon"><!-- START: Search frame -->
                <form @submit.prevent="submitUpdate">
                   <div class="row mt-2 p-2 align-items-center"><!-- START: Search frame first paragraph -->
-                     <div class="col-2 text-end">
+                     <div class="col-lg-2 text-end">
                         <label for="selectDeviceList" class="col-form-label">センサー選択</label>
                      </div>
-                     <div class="col-6">
+                     <div class="col-lg-6">
                         <select class="form-select" aria-label="取得する気象センサーを選択" id="selectDeviceList" v-model="deviceChange">
                            {% for device_dict in device_dict_list %} 
                            <option value="{{ device_dict.name }}">{{ device_dict.description }}</option>
@@ -26,16 +26,16 @@
                      <div class="col-auto bg-warning">{{ info_today_update_interval }}</div>
                   </div>
                   <div class="row p-2 align-items-center"><!-- START Search frame secondary paragraph -->
-                     <div class="col-2 text-end">
+                     <div class="col-lg-2 text-end">
                         <label for="radioGroup" class="col-form-label">表示データ種別</label>
                      </div>
-                     <div class="col-10"><!-- START: Secondary paragraph right column 10  -->
+                     <div class="col-lg-10"><!-- START: Secondary paragraph right column 10  -->
                         <div class="row align-items-center">
-                           <div class="col-auto">
+                           <div class="form-check col-auto">
                               <input class="form-check-input" type="radio" name="radioOptions" id="radioToday" value="today" v-model="radioChange" />
                               <label class="form-check-label" for="radioToday">当日データ</label>
                            </div>
-                           <div class="col-auto">
+                           <div class="form-check col-auto">
                               <input class="form-check-input" type="radio" name="radioOptions" id="radioYearMonth" value="yearMonth" v-model="radioChange" />
                               <label class="form-check-label" for="radioYearMonth">年月データ</label>
                            </div>
@@ -48,7 +48,7 @@
                                   </option>
                               </select>
                            </div>
-                           <div class="col-auto">
+                           <div class="form-check col-auto">
                               <input class="form-check-input" type="radio" name="radioOptions" id="radioComparePrevYear" value="comparePrevYear" v-model="radioChange" />
                               <label class="form-check-label" for="radioComparePrevYear">前年比較:</label>
                            </div>
