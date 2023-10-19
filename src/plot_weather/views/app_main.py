@@ -659,7 +659,7 @@ def _checkStartDay(args: MultiDict) -> Optional[str]:
     param_start_day: str = args.get(PARAM_START_DAY, default="", type=str)
     if app_logger_debug:
         app_logger.debug(f"start_day: {param_start_day}")
-    valid: bool = date_util.checkIso8601Date(param_start_day)
+    valid: bool = date_util.check_str_date(param_start_day)
     if valid is True:
         return param_start_day
     else:
