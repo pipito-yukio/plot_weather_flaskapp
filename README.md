@@ -36,9 +36,17 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
 
 #### 2-1. PC用ブラウザ向け画面 (1画面)
 
-* 今日のデータ(左側)  
-  (1) 初回リクエストは画面返却 (HTML)  
-  (2) 2回目以降は赤枠のグラフ領域のみJavaScriptで下記レスポンス(JSON形式)を受信
+* 初期画面表示  
+   初回リクエストはNoImage画面返却 (HTML)  
+<div style="text-align:center;border:1px solid;margin:1em">
+<img src="images/Browser_0_initPage.jpg">
+</div>
+* 当日データ  
+  センサー種別リストから観測センサーを詮索するとJavaScriptで下記レスポンス(JSON形式)を受信
+<div style="text-align:center;border:1px solid;margin:1em">
+<img src="images/Browser_1_todayImage.jpg">
+</div>
+
 * 月間データ  
    赤枠のグラフ領域のみJavaScriptで下記レスポンス(JSON形式)を受信  
    => HTML の &lt;img src="base64エンコード文字列"&gt; に設定
@@ -54,14 +62,14 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
     }
     ```
 
-<div style="text-align:center;">
-<img src="images/PlotWeather_BrowserVersion.jpg">
+<div style="text-align:center;border:1px solid;margin:1em">
+<img src="images/Browser_2_ymImage.jpg">
 </div>
 
-* 前年比較データ (新機能)  
-2年以上データが蓄積されてきたので、前年度のデータとの比較画像を追加
-<div style="text-align:center;">
-<img src="images/PlotWeather_BrowserVersion_2.jpg">
+* 前年比較データ ★★新機能★★  
+2年以上データが蓄積されてきたので、前年度データとの比較機能を追加
+<div style="text-align:center;border:1px solid;margin:1em">
+<img src="images/Browser_3_compPrevYmImage.jpg">
 </div>
 
 
