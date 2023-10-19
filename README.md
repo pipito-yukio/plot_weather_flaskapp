@@ -41,8 +41,11 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
 <div style="text-align:center;border:1px solid;margin:1em">
 <img src="images/Browser_0_initPage.jpg">
 </div>
-* 当日データ  
-  センサー種別リストから観測センサーを詮索するとJavaScriptで下記レスポンス(JSON形式)を受信
+
+* 年月リストと前年比較リスト取得  
+  センサー選択リストから観測データのセンサーを選択するとJavaScriptで年月リストと前年比較リストを受信
+* 当日データ画像取得  
+　更新ボタンを押下すると選択されたセンサーの当日データをJavaScriptで取得しグラフ画面を更新する
 <div style="text-align:center;border:1px solid;margin:1em">
 <img src="images/Browser_1_todayImage.jpg">
 </div>
