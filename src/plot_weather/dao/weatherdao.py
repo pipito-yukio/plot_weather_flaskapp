@@ -31,9 +31,9 @@ SELECT
   to_char(measurement_time,'YYYY-MM-DD HH24:MI') as measurement_time
   , temp_out, temp_in, humid, pressure
 FROM
-  weather.t_weather
+  weather.t_weather tw INNER JOIN weather.t_device td ON tw.did = td.id
 WHERE
-  did=(SELECT id FROM weather.t_device WHERE name=%(name)s)
+  td.name=%(name)s
   AND
   measurement_time = (SELECT max(measurement_time) FROM weather.t_weather);
 """
@@ -42,9 +42,9 @@ WHERE
 SELECT
   to_char(measurement_time, 'YYYY-MM-DD') as groupby_days
 FROM
-  weather.t_weather
+  weather.t_weather tw INNER JOIN weather.t_device td ON tw.did = td.id
 WHERE
-  did=(SELECT id FROM weather.t_device WHERE name=%(name)s)
+  td.name=%(name)s
   AND
   to_char(measurement_time, 'YYYY-MM-DD') >= %(start_date)s
 GROUP BY to_char(measurement_time, 'YYYY-MM-DD')
@@ -55,9 +55,9 @@ ORDER BY to_char(measurement_time, 'YYYY-MM-DD');
 SELECT
   to_char(measurement_time, 'YYYY-MM') as groupby_months
 FROM
-  weather.t_weather
+  weather.t_weather tw INNER JOIN weather.t_device td ON tw.did = td.id
 WHERE
-  did=(SELECT id FROM weather.t_device WHERE name=%(name)s)
+  td.name=%(name)s
   GROUP BY to_char(measurement_time, 'YYYY-MM')
   ORDER BY to_char(measurement_time, 'YYYY-MM') DESC;
 """
@@ -67,9 +67,9 @@ SELECT
    did, to_char(measurement_time,'YYYY-MM-DD HH24:MI') as measurement_time
    , temp_out, temp_in, humid, pressure
 FROM
-   weather.t_weather
+  weather.t_weather tw INNER JOIN weather.t_device td ON tw.did = td.id
 WHERE
-   did=(SELECT id FROM weather.t_device WHERE name=%(name)s)
+   td.name=%(name)s
    AND
    measurement_time >= to_timestamp(%(today)s, 'YYYY-MM-DD HH24:MI:SS')
 ORDER BY measurement_time;
@@ -80,9 +80,9 @@ SELECT
    did, to_char(measurement_time,'YYYY-MM-DD HH24:MI') as measurement_time
    , temp_out, temp_in, humid, pressure
 FROM
-   weather.t_weather
+  weather.t_weather tw INNER JOIN weather.t_device td ON tw.did = td.id
 WHERE
-   did=(SELECT id FROM weather.t_device WHERE name=%(name)s)
+   td.name=%(name)s
    AND (
      measurement_time >= to_timestamp(%(from_date)s, 'YYYY-MM-DD HH24::MI:SS')
      AND
@@ -95,9 +95,9 @@ ORDER BY measurement_time;
 SELECT
    to_char(min(measurement_time), 'YYYY-MM-DD') as min_measurement_day
 FROM 
-   weather.t_weather
+  weather.t_weather tw INNER JOIN weather.t_device td ON tw.did = td.id
 WHERE
-   did=(SELECT id FROM weather.t_device WHERE name=%(name)s);
+   td.name=%(name)s;
 """
 
     _QUERY_PREV_YEAR_MONTH_LIST: str = """
@@ -105,9 +105,9 @@ WITH t_year_month AS(
   SELECT
     did ,to_char(measurement_time, 'YYYYMM') AS year_month
   FROM
-    weather.t_weather
+    weather.t_weather tw INNER JOIN weather.t_device td ON tw.did = td.id
   WHERE
-    did=(SELECT id FROM weather.t_device WHERE name=%(name)s)  
+    td.name=%(name)s  
   GROUP BY did,year_month
 )
 SELECT
@@ -124,9 +124,9 @@ ORDER BY latest_year_month DESC;
 SELECT
    to_char(max(measurement_time), 'YYYY-MM-DD') as min_measurement_day
 FROM 
-   weather.t_weather
+  weather.t_weather tw INNER JOIN weather.t_device td ON tw.did = td.id
 WHERE
-   did=(SELECT id FROM weather.t_device WHERE name=%(name)s);
+   td.name=%(name)s;
 """
 
     def __init__(self, conn: connection, logger: Optional[logging.Logger] = None):

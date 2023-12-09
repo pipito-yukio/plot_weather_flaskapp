@@ -31,9 +31,9 @@ class WeatherPrevCompDao:
 SELECT
    measurement_time, temp_out, humid, pressure
 FROM
-   weather.t_weather
+  weather.t_weather tw INNER JOIN weather.t_device td ON tw.did = td.id
 WHERE
-   did=(SELECT id FROM weather.t_device WHERE name=%(name)s)
+   td.name=%(name)s
    AND (
      measurement_time >= to_timestamp(%(from_date)s, 'YYYY-MM-DD HH24::MI:SS')
      AND
