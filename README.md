@@ -70,8 +70,8 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
 
 (1) 最終レコードデータ画面 (左側)   
 (2) グラフ画像表示画面 
-* (中) 当日データ
-* (右側) 期間データ: [1, 2, 3, 7] 〜 本日を含む過去日に遡って検索  
+* (左側) 本日レコードデータ
+* (右側: 2画面) 期間レコードデータ: [1, 2, 3, 7] 〜 本日を含む過去日に遡って検索  
 
 <div style="text-align:center;">
 <img src="images/PlotWeather_AndroidVersion.jpg">
@@ -81,38 +81,60 @@ Matplotlibで生成したグラフをブラウザまたはAndroidスマホに画
 (1) 最終レコードデータ画面 (左側):  下記レスポンス (JSON形式)
 
 ```json
-    {
-        "data": {
-            "humid": 63.2, 
-            "measurement_time": "2022-07-29 19:26", 
-            "pressure": 1012.6, 
-            "temp_in": 26.1, 
-            "temp_out": 24.1,
-            "rec_count": 1
-        }, 
-        "status": {
-            "code": 0, 
-            "message": "OK"
-        }
+{
+  "data": {
+    "humid": 59.1, 
+    "measurement_time": "2023-12-09 14:57", 
+    "pressure": 1006.9, 
+    "rec_count": 1, 
+    "temp_in": 16.9, 
+    "temp_out": 9.2, 
+    "temp_out_stat_before": {
+      "max": {
+        "appear_time": "14:36", 
+        "temper": 8.2
+      }, 
+      "measurement_date": "2023-12-08", 
+      "min": {
+        "appear_time": "04:23", 
+        "temper": -1.8
+      }
+    }, 
+    "temp_out_stat_today": {
+      "max": {
+        "appear_time": "12:50", 
+        "temper": 9.8
+      }, 
+      "measurement_date": "2023-12-09", 
+      "min": {
+        "appear_time": "00:01", 
+        "temper": 1.6
+      }
     }
+  }, 
+  "status": {
+    "code": 0, 
+    "message": "OK"
+  }
+}
 ```
 
 (2) データグラフ表示画面 (右側):  下記レスポンス (JSON形式)  
    画像データのBase64エンコード文字列 => Android **Bitmap変換** => Android **ImageView**
 
 ```json
-    {
-        "data": {
-            "img_src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAR0AAADj...
-        ...画像データのBase64エンコード文字列 (一部省略)...
-        PxP67hSRmPQAAAABJRU5ErkJggg==",
-            "rec_count": 3281
-        }, 
-        "status": {
-            "code": 0, 
-            "message": "OK"
-        }
+{
+    "data": {
+        "img_src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAR0AAADj...
+　　        ...画像データのBase64エンコード文字列 (一部省略)...
+   　　     PxP67hSRmPQAAAABJRU5ErkJggg==",
+        "rec_count": 3281
+     }, 
+    "status": {
+        "code": 0, 
+        "message": "OK"
     }
+}
 ```
 
 ### 3. 不正リクエスト対応
