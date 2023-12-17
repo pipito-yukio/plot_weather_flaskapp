@@ -3,7 +3,7 @@
   "disable_existing_loggers": true,
   "formatters": {
     "fileFormatter": {
-      "format": "%(asctime)s %(levelname)s %(filename)s(%(lineno)d)[%(funcName)s] %(message)s",
+      "format": "%(asctime)s %(levelname)s.%(msecs)03d %(filename)s(%(lineno)d)[%(funcName)s] %(message)s",
       "datefmt": "%Y-%m-%d %H:%M:%S"
     },
     "consoleFormatter": {

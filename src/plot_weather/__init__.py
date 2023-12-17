@@ -88,7 +88,14 @@ NO_IMAGE_DATA: str = image_to_base64encoded(
 
 # Database connection pool
 dbconf: Dict[str, str] = read_json(DB_CONF_PATH)
-dbconf["host"] = dbconf["host"].format(hostname=socket.gethostname())
+# Other Database host
+db_host: str = os.environ.get("DB_HOST", None)
+if db_host is None:
+    # Production: deault Database host
+    dbconf["host"] = dbconf["host"].format(hostname=socket.gethostname())
+else:
+    # Development
+    dbconf["host"] = dbconf["host"].format(hostname=db_host)
 if app_logger_debug:
     app_logger.debug(f"dbconf: {dbconf}")
 conn_pool = SimpleConnectionPool(1, DB_CONN_MAX, **dbconf)

@@ -4,15 +4,22 @@ from typing import Dict, List, Optional, Tuple, Union
 from flask import (
     abort, g, jsonify, render_template, request, make_response, Response
 )
+from werkzeug.datastructures import Headers, MultiDict
 from werkzeug.exceptions import (
     BadRequest, Forbidden, HTTPException, InternalServerError, NotFound
     )
+
+import psycopg2
+from psycopg2.pool import SimpleConnectionPool
+from psycopg2.extensions import connection
+
 from plot_weather import (BAD_REQUEST_IMAGE_DATA,
                           INTERNAL_SERVER_ERROR_IMAGE_DATA,
                           NO_IMAGE_DATA, 
                           DebugOutRequest,
                           app, app_logger, app_logger_debug)
 from plot_weather.dao.weatherdao import WeatherDao
+from plot_weather.dao.weatherstatdao import TempOutStatDao
 from plot_weather.dao.devicedao import DeviceDao, DeviceRecord
 from plot_weather.db.sqlite3conv import DateFormatError, strdate2timestamp
 from plot_weather.plotter.plotterweather import (
@@ -21,10 +28,6 @@ from plot_weather.plotter.plotterweather import (
 from plot_weather.plotter.plotterweather_prevcomp import (
     gen_plot_image as gen_comp_prev_plot_image
 )
-from werkzeug.datastructures import Headers, MultiDict
-import psycopg2
-from psycopg2.pool import SimpleConnectionPool
-from psycopg2.extensions import connection
 import plot_weather.util.date_util as date_util
 
 APP_ROOT: str = app.config["APPLICATION_ROOT"]
@@ -113,10 +116,10 @@ def index() -> str:
             app_logger.debug(f"device_dict_list:{device_dict_list}")
         
         # 前回選択されたデバイス名存在したら関連する年月リストと当日画像をロードする
-        ym_list: List[str] = None
-        prev_ym_list: List[str] = None
+        ym_list: Optional[List[str]] = None
+        prev_ym_list: Optional[List[str]] = None
         rec_count: Optional[int] = None
-        img_base64_encoded: str = None
+        img_base64_encoded: Optional[str] = None
         if device_in_cookie is not None:
             # 当日: ブラウザ版は開発環境利用も考慮し最終日付とする
             conn: connection = get_connection()
@@ -219,7 +222,7 @@ def getTodayImage(device_name: str) -> Response:
         conn: connection = get_connection()
         # 本日データプロット画像取得
         dao: WeatherDao = WeatherDao(conn, logger=app_logger)
-        last_day: str = dao.getLastRegisterDay(device_name)
+        last_day: Optional[str] = dao.getLastRegisterDay(device_name)
         s_today = last_day if last_day is not None else date.today().strftime(
             '%Y-%m-%d')
         image_date_params = ImageDateParams(ImageDateType.TODAY)
@@ -327,6 +330,8 @@ def getLastDataForPhone() -> Response:
        [仕様変更] 2023-09-09
          (1) リクエストパラメータ追加
             device_name: デバイス名 ※必須
+       [仕様変更] 2023-12-03
+         (2) レスポンスに外気温の統計情報を追加する
     
     :param: request parameter: device_name="xxxxx"
     """
@@ -353,12 +358,39 @@ def getLastDataForPhone() -> Response:
         if row:
             rec_count = 1
             measurement_time, temp_out, temp_in, humid, pressure = row
+            # 検索日の外気温の統計情報を取得
+            #   上記の測定時刻から検索日付を取得
+            find_date: str = measurement_time[:10]
+            temp_out_stat: TempOutStatDao = TempOutStatDao(
+                conn, logger=app_logger, is_debug_out=app_logger_debug)
+            min_temp: Dict
+            max_temp: Dict
+            min_temp, max_temp = temp_out_stat.get_statistics(
+                param_device_name, find_date)
+            if app_logger_debug:
+                app_logger.debug(f"min_temp: {min_temp}, max_temp: {max_temp}")
+            # 検索日の統計情報Dict    
+            stat_today_dict: Dict = _makeTempOutStatDict(min_temp, max_temp)
+            # 検索日を追加
+            stat_today_dict["measurement_date"] = find_date
+            # 前日の外気温の統計情報を取得
+            before_date: str = date_util.addDayToString(find_date, add_days=-1)
+            min_temp, max_temp = temp_out_stat.get_statistics(
+                param_device_name, before_date)
+            if app_logger_debug:
+                app_logger.debug(f"min_temp: {min_temp}, max_temp: {max_temp}")
+            stat_before_dict: Dict = _makeTempOutStatDict(min_temp, max_temp)
+            stat_before_dict["measurement_date"] = before_date
             return _responseLastDataForPhone(
-                measurement_time, temp_out, temp_in, humid, pressure, rec_count)
+                measurement_time, temp_out, temp_in, humid, pressure, 
+                rec_count, stat_today_dict=stat_today_dict, stat_before_dict=stat_before_dict)
         else:
             # デバイス名に対応するレコード無し
             rec_count = 0
-            return _responseLastDataForPhone(None, None, None, None, None, rec_count)
+            return _responseLastDataForPhone(
+                None, None, None, None, None, rec_count,
+                stat_today_dict=None, stat_before_dict=None
+                )
     except psycopg2.Error as db_err:
         app_logger.error(db_err)
         abort(InternalServerError.code, _set_errormessage(f"559,{db_err}"))
@@ -689,12 +721,14 @@ def _createErrorImageResponse(err_code) -> Response:
 
 
 def _responseLastDataForPhone(
-        mesurement_time: str,
-        temp_out: float,
-        temp_in: float,
-        humid: float,
-        pressure: float,
-        rec_count: int
+        mesurement_time: Optional[str],
+        temp_out: Optional[float],
+        temp_in: Optional[float],
+        humid: Optional[float],
+        pressure: Optional[float],
+        rec_count: int,
+        stat_today_dict: Optional[Dict],
+        stat_before_dict: Optional[Dict]
         ) -> Response:
     """気象データの最終レコードを返却する (スマホアプリ用)"""
     resp_obj: Dict[str, Dict[str, Union[str, float]]] = {
@@ -706,10 +740,19 @@ def _responseLastDataForPhone(
             "temp_in": temp_in,
             "humid": humid,
             "pressure": pressure,
-            "rec_count": rec_count
+            "rec_count": rec_count,
+            "temp_out_stat_today": stat_today_dict,
+            "temp_out_stat_before": stat_before_dict
         }
     }
     return _make_respose(resp_obj, 200)
+
+
+def _makeTempOutStatDict(minDict: Dict, maxDict: Dict) -> Dict:
+    stat_dict: Dict = {
+        "min": minDict, "max": maxDict
+    }
+    return stat_dict
 
 
 def _responseFirstRegisterDayForPhone(

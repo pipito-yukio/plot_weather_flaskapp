@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 from io import StringIO
 
-from ..dao.weathercommon import PLOT_CONF
+from plot_weather.dao.weathercommon import PLOT_CONF
 from psycopg2.extensions import connection
 from matplotlib import rcParams
 import matplotlib.dates as mdates
@@ -15,19 +15,19 @@ import numpy as np
 import pandas as pd
 from pandas.core.frame import DataFrame, Series
 
-from ..dao.weatherdao_prevcomp import WeatherPrevCompDao
+from plot_weather.dao.weatherdao_prevcomp import WeatherPrevCompDao
 from .plottercommon import (
     COL_TIME, COL_TEMP_OUT, COL_HUMID, COL_PRESSURE,
     Y_LABEL_HUMID, Y_LABEL_PRESSURE,
     convert_html_image_src
 )
-from ..util.date_util import toPreviousYearMonth
+from plot_weather.util.date_util import toPreviousYearMonth
 
 """ 前年と比較した気象データ画像のbase64エンコードテキストデータを出力する """
 
-rcParams['font.family'] = PLOT_CONF['font.family']
-font_family_font: str = 'font.' + PLOT_CONF['font.family']
-rcParams[font_family_font] = PLOT_CONF['japanese.font']
+rcParams["font.family"] = PLOT_CONF["font.families"]
+# 可変長ゴシックフォント
+rcParams["font.sans-serif"] = PLOT_CONF["sans-serif.font"][0]
 
 COL_PREV_PLOT_TIME: str = 'prev_plot_measurement_time'
 
@@ -69,7 +69,7 @@ TITLE_STYLE: Dict = {'fontsize': 11, }
 def plusOneYear(prev_datetime: datetime) -> datetime:
     """
     前年のdatetimeオブジェクトに1年プラスしたdatetimeオブジェクトを取得する
-    @param prev_datetime: 前年のdatetimeオブジェクト
+    :param prev_datetime: 前年のdatetimeオブジェクト
     @return: 1年プラスしたdatetimeオブジェクト
     """
     next_val: datetime = datetime(prev_datetime.year + 1,

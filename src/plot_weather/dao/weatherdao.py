@@ -38,19 +38,6 @@ WHERE
   measurement_time = (SELECT max(measurement_time) FROM weather.t_weather);
 """
 
-    _QUERY_GROUPBY_DAYS: str = """
-SELECT
-  to_char(measurement_time, 'YYYY-MM-DD') as groupby_days
-FROM
-  weather.t_weather tw INNER JOIN weather.t_device td ON tw.did = td.id
-WHERE
-  td.name=%(name)s
-  AND
-  to_char(measurement_time, 'YYYY-MM-DD') >= %(start_date)s
-GROUP BY to_char(measurement_time, 'YYYY-MM-DD')
-ORDER BY to_char(measurement_time, 'YYYY-MM-DD');
-    """
-
     _QUERY_GROUPBY_MONTHS: str = """
 SELECT
   to_char(measurement_time, 'YYYY-MM') as groupby_months
@@ -179,16 +166,6 @@ WHERE
             result = [item for (item,) in tuple_list]
 
         return result
-
-    def getGroupByDays(self, device_name: str, start_date: str) -> List[str]:
-        """観測デバイスの年月日にグルーピングしたリストを取得する
-        :param device_name: 観測デバイス名
-        :param start_date: 取得開始日 ※必須
-        :return
-            list[str]: 年月日リスト(%Y-%m-%d)
-        """
-        return self._getDateGroupByList(self._QUERY_GROUPBY_DAYS,
-                                        device_name, start_date=start_date)
 
     def getGroupByMonths(self, device_name: str) -> List[str]:
         """観測デバイスの年月にグルーピングしたリストを取得する

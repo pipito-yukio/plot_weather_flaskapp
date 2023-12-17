@@ -1,8 +1,8 @@
 import enum
 import logging
-from typing import Dict, List, Optional, Tuple, Union
 from datetime import datetime, timedelta
 from io import StringIO
+from typing import Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 from pandas.core.frame import DataFrame
@@ -12,16 +12,21 @@ import matplotlib.dates as mdates
 from matplotlib import rcParams
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.legend import Legend
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
+from matplotlib.text import Text
 from matplotlib.pyplot import setp
 
-from ..dao.weathercommon import PLOT_CONF
-from ..dao.weatherdao import WeatherDao
+from plot_weather.dao.weathercommon import PLOT_CONF
+from plot_weather.dao.weatherdao import WeatherDao
 from .plottercommon import (
     COL_TIME, COL_TEMP_OUT, COL_TEMP_IN, COL_HUMID, COL_PRESSURE,
     Y_LABEL_TEMP, Y_LABEL_HUMID, Y_LABEL_PRESSURE,
     convert_html_image_src
 )
-from ..util.date_util import (
+from plot_weather.plotter.plotstatistics import TempOutStat, get_temp_out_stat
+from plot_weather.util.date_util import (
     addDayToString, datetimeToJpDateWithWeek, strDateToDatetimeTime000000,
     FMT_ISO8601, FMT_DATETIME
 )
@@ -31,14 +36,16 @@ from ..util.date_util import (
 # 日本語フォントの設定方法
 #  日本語フォントとしてIPAexフォントがインストール済みのであると仮定した場合
 # [A] 叉は [B] のどちらの方法でも指定された日本語フォントが反映される
-# [A] https://matplotlib.org/3.1.0/gallery/text_labels_and_annotations/font_family_rc_sgskip.html
+# [A] https://matplotlib.org/3.1.0/gallery/text_labels_and_annotations/fdfont_family_rc_sgskip.html
 #    Configuring the font family
 # rcParams['font.family'] = 'sans-serif'
 # rcParams[font.sans-serif] = ['IPAexGothic'] <<-- リスト
 # ~/[Application root]/plot_weather/dao/conf/plot_weather.json: PLOT_CONF
-rcParams['font.family'] = PLOT_CONF['font.family']
-font_family_font: str = 'font.' + PLOT_CONF['font.family']
-rcParams[font_family_font] = PLOT_CONF['japanese.font']
+rcParams["font.family"] = PLOT_CONF["font.families"]
+# 可変長ゴシックフォント
+rcParams["font.sans-serif"] = PLOT_CONF["sans-serif.font"][0]
+# 固変定ゴシックフォント: 統計情報で使用
+rcParams["font.monospace"] = PLOT_CONF['monospace.font'][0]
 # [B] "matplotlibrc" ファイルの 14,15,16行目に記載されている方法
 # ## If you wish to change your default style, copy this file to one of the
 # ## following locations:
@@ -55,6 +62,10 @@ rcParams[font_family_font] = PLOT_CONF['japanese.font']
 LABEL_FONT_SIZE: int = 10
 # グラフのグリッド線スタイル
 GRID_STYLES: Dict[str, Union[str, float]] = {"linestyle": "--", "linewidth": 1.0}
+# 外気温統計情報のカラー定数定義
+COLOR_MIN_TEMPER: str = "darkcyan"
+COLOR_MAX_TEMPER: str = "orange"
+COLOR_AVG_TEMPER: str = "red"
 
 
 class ImageDateType(enum.Enum):
@@ -243,23 +254,109 @@ def loadBeforeDaysRangeDataFrame(
 
 
 def _temperaturePlotting(
-        ax: Axes, df: pd.DataFrame, title_date: str, label_font_size: int) -> None:
+        ax: Axes, df: pd.DataFrame, title_date: str, plot_conf: Dict,
+        image_date_type: ImageDateType, temp_out_stat: TempOutStat
+) -> None:
     """
     温度サブプロット(axes)にタイトル、軸・軸ラベルを設定し、
     DataFrameオプジェクトの外気温・室内気温データをプロットする
     :param ax:温度サブプロット(axes)
     :param df:DataFrameオプジェクト
     :param title_date: タイトル ※日付
-    :param label_font_size: ラベルフォントサイズ
+    :param plot_conf: プロット設定情報
+    :param image_date_type: ImageDateType
+    :param temp_out_stat: 外気温統計情報
     """
-    ax.plot(df[COL_TIME], df[COL_TEMP_OUT], color="blue", marker="", label="外気温")
-    ax.plot(df[COL_TIME], df[COL_TEMP_IN], color="red", marker="", label="室内気温")
+
+    def make_patch(label: str, appear_time: Optional[str], temper: float,
+                   s_color: str) -> Patch:
+        """ 指定されたラベルと外気温統計の凡例を生成 """
+        if appear_time is not None:
+            patch_label: str = f"{label} {temper:4.1f}℃ [{appear_time}]"
+        else:
+            # 出現時刻がない場合は平均値
+            patch_label: str = f"{label} {temper:4.1f}℃"
+        return Patch(color=s_color, label=patch_label)
+
+    def plot_horizontal_line(axes: Axes, temper: float,
+                             s_color: str, linestyle: Optional[str] = None):
+        """ 指定された統計情報の外気温の横線を生成する """
+        line_style: str = "dashed" if linestyle is None else linestyle
+        axes.axhline(temper, color=s_color, linestyle=line_style, linewidth=1.)
+
+    # 外気温・室内気温のプロット
+    #  Y軸ラベルフォント
+    label_font_size: int = plot_conf["label.sizes"][0]
+    # 凡例フォント
+    legend_font_size: int = plot_conf["legend-fontsize"]
+    # {list: 1} [<matplotlib.lines.Line2D object at オブジェクトアドレス>]
+    plot_temp_out_list: List[Line2D] = ax.plot(df[COL_TIME], df[COL_TEMP_OUT],
+                                               color="blue", marker="", label="外気温")
+    plot_temp_in_list: List[Line2D] = ax.plot(df[COL_TIME], df[COL_TEMP_IN],
+                                              color="red", marker="", label="室内気温")
     ax.set_ylim(PLOT_CONF["ylim"]["temp"])
     ax.set_ylabel(Y_LABEL_TEMP, fontsize=label_font_size)
-    ax.legend(loc="best")
     ax.set_title(f"気象データ：{title_date}")
     # Hide xlabel
     ax.label_outer()
+    # 外気温・室内気温の凡例: 常に左上端
+    #  当日なら凡例のPatchに日付部分がないのでカラムを1行に2列とする, 期間なら 2行1列
+    first_legend: Legend = ax.legend(
+        handles=[plot_temp_out_list[0], plot_temp_in_list[0]],
+        ncol = (2 if image_date_type == image_date_type.TODAY else 1),
+        loc="upper left"
+    )
+    text: Text
+    for text in first_legend.get_texts():
+        # フォントサイズ設定
+        text.set_fontsize(str(legend_font_size))
+    ax.add_artist(first_legend)
+
+    # 外気温統計情報を追加
+    # 凡例に追加する最低・最高・平均気温の統計情報(Patch)を生成する
+    # 出現時刻は日付データ型に応じて
+    min_appear_time: str
+    max_appear_time: str
+    if image_date_type == ImageDateType.TODAY:
+        # 当日データの場合: 時分秒
+        min_appear_time = temp_out_stat.min.appear_time[11:]
+        max_appear_time = temp_out_stat.max.appear_time[11:]
+    else:
+        # 当日データ以外の場合: 年月日 + 時分秒
+        min_appear_time = temp_out_stat.min.appear_time
+        max_appear_time = temp_out_stat.max.appear_time
+    mim_temper_patch: Patch = make_patch(
+        "最低", min_appear_time, temp_out_stat.min.temper, COLOR_MIN_TEMPER
+    )
+    max_temper_patch: Patch = make_patch(
+        "最高", max_appear_time, temp_out_stat.max.temper, COLOR_MAX_TEMPER
+    )
+    avg_temper_patch: Patch = make_patch(
+        "平均", None, temp_out_stat.average_temper, COLOR_AVG_TEMPER
+    )
+    # 最低気温の横線
+    plot_horizontal_line(ax, temp_out_stat.min.temper, COLOR_MIN_TEMPER)
+    # 最高気温の横線
+    plot_horizontal_line(ax, temp_out_stat.max.temper, COLOR_MAX_TEMPER)
+    # 平均気温の横線
+    #  最低気温と最高気温の差が既定値以下なら平均線を出力しない ※線が接近して非常に見づらい
+    appear_threthold: float = PLOT_CONF["appear_avg_line.threthold_diff_temper"]
+    diff_temper: float = abs(temp_out_stat.max.temper - temp_out_stat.min.temper)
+    if diff_temper > appear_threthold:
+        # しきい値より大きかったら出力
+        plot_horizontal_line(
+            ax, temp_out_stat.average_temper, COLOR_AVG_TEMPER, linestyle="dashdot"
+        )
+    # Create TempOutStat legend
+    stat_legend: Legend = ax.legend(
+        handles=[mim_temper_patch, max_temper_patch, avg_temper_patch],
+        title="外気温統計",
+        loc="best"
+    )
+    # 統計情報は日本語固定フォントを設定
+    for text in stat_legend.get_texts():
+        text.set_fontfamily("monospace")
+        text.set_fontsize(str(legend_font_size))
 
 
 def _humidPlotting(ax: Axes, df: pd.DataFrame, label_font_size) -> None:
@@ -351,16 +448,19 @@ def generate_figure(phone_size: str = None, logger=None, logger_debug=False) -> 
 
 
 def make_graph(df: DataFrame, image_params: ImageDateParams,
-               phone_size: str = None, title_part: str = None,
-               today_xmin: datetime = None, today_xmax: datetime = None,
-               start_day: str = None, before_days: int = None,
+               title_part: str, temp_out_stat: TempOutStat,
+               phone_size: Optional[str] = None,
+               today_xmin: Optional[datetime] = None,
+               today_xmax: Optional[datetime] = None,
+               start_day: Optional[str] = None, before_days: Optional[int] = None,
                logger=None, logger_debug=False) -> Figure:
     """
     観測データのDataFrameからグラフを生成し描画領域を取得する
-    :param df: 観測データをロードしたDataFrame
-    :param image_params: 画像入力パラメータ
+    :param df: 観測データをロードしたDataFrame ※必須
+    :param image_params: 画像入力パラメータ ※必須
+    :param title_part: タイトル部分文字列 ※必須
+    :param temp_out_stat: 外気温統計情報 ※必須
     :param phone_size: 端末のイメージ領域サイズ情報 ※任意 (PC BrowserでのリクエストはNone)
-    :param title_part: タイトル部分文字列
     :param today_xmin: 当日データの最小値(x軸)(当日の"00:00:00") ※任意
     :param today_xmax: 当日データの最大値(x軸)(翌日の"00:00:00") ※任意
     :param start_day: 範囲データの検索開始日 ※任意
@@ -375,7 +475,10 @@ def make_graph(df: DataFrame, image_params: ImageDateParams,
     ax_temp: Axes
     ax_humid: Axes
     ax_pressure: Axes
-    (ax_temp, ax_humid, ax_pressure) = fig.subplots(nrows=3, ncols=1, sharex=True)
+    (ax_temp, ax_humid, ax_pressure) = fig.subplots(
+        nrows=3, ncols=1, sharex=True,
+        gridspec_kw={'height_ratios': PLOT_CONF["axes_height_ratio"]}
+    )
     for ax in [ax_temp, ax_humid, ax_pressure]:
         ax.grid(**GRID_STYLES)
 
@@ -389,8 +492,10 @@ def make_graph(df: DataFrame, image_params: ImageDateParams,
         setp(ax.get_yticklabels(), fontsize=y_tick_labels_font_size)
 
     # サブプロットの設定
-    # 1.外気温と室内気温
-    _temperaturePlotting(ax_temp, df, title_part, label_font_size)
+    # 1.外気温と室内気温、外気温統計情報
+    _temperaturePlotting(ax_temp, df, title_part,
+                         PLOT_CONF, image_params.getImageDateType(), temp_out_stat
+                         )
     # 2.室内湿度
     _humidPlotting(ax_humid, df, label_font_size)
     # 3.気圧
@@ -414,7 +519,8 @@ def make_graph(df: DataFrame, image_params: ImageDateParams,
 
 
 def gen_plot_image(
-        conn: connection, device_name: str, image_params: ImageDateParams, logger=None
+        conn: connection, device_name: str, image_params: ImageDateParams,
+        logger: Optional[logging.Logger] = None
 ) -> Tuple[int, Optional[str]]:
     """
     観測データの画像を生成する
@@ -429,7 +535,7 @@ def gen_plot_image(
     else:
         logger_debug = False
 
-    dao = WeatherDao(conn, logger=logger)
+    dao: WeatherDao = WeatherDao(conn, logger=logger)
     # for phone appli (ImageDateType.TODAY | ImageDateType.RANGE)
     phone_size: str = ""
     # for ImageDateType.TODAY
@@ -475,11 +581,14 @@ def gen_plot_image(
     if rec_count == 0:
         return rec_count, None
 
+    # 外気温統計情報を取得する
+    temp_out_stat: TempOutStat = get_temp_out_stat(df, logger=logger)
     # グラフ生成
     fig: Figure = make_graph(
-        df, image_params,
-        phone_size=phone_size, title_part=title_date_part,
-        today_xmin=today_xmin, today_xmax=today_xmax,
+        # 必須パラメータ
+        df, image_params, title_date_part, temp_out_stat,
+        # 任意パラメータ
+        phone_size=phone_size, today_xmin=today_xmin, today_xmax=today_xmax,
         start_day=start_day, before_days=before_days,
         logger=logger, logger_debug=logger_debug)
     # 画像をバイトストリームに溜め込みそれをbase64エンコードしてレスポンスとして返す

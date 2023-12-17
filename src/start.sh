@@ -25,7 +25,7 @@ else
    EXEC_PATH="$HOME/PlotWeatherForRaspi4"
 fi
 
-. $HOME/py_venv/py_flask/bin/activate
+. $HOME/py_venv/raspi4_apps/bin/activate
 
 python $EXEC_PATH/run.py
 
