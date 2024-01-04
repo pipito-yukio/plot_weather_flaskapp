@@ -25,7 +25,7 @@ from .plottercommon import (
     Y_LABEL_TEMP, Y_LABEL_HUMID, Y_LABEL_PRESSURE,
     convert_html_image_src
 )
-from plot_weather.plotter.plotstatistics import TempOutStat, get_temp_out_stat
+from plot_weather.plotter.pandas_statistics import TempOutStat, get_temp_out_stat
 from plot_weather.util.date_util import (
     addDayToString, datetimeToJpDateWithWeek, strDateToDatetimeTime000000,
     FMT_ISO8601, FMT_DATETIME
@@ -61,7 +61,7 @@ rcParams["font.monospace"] = PLOT_CONF['monospace.font'][0]
 # クラフの軸ラベルフォントサイズ
 LABEL_FONT_SIZE: int = 10
 # グラフのグリッド線スタイル
-GRID_STYLES: Dict[str, Union[str, float]] = {"linestyle": "--", "linewidth": 1.0}
+GRID_STYLES: Dict[str, Union[str, float]] = {"linestyle": "dashed", "linewidth": 1.0}
 # 外気温統計情報のカラー定数定義
 COLOR_MIN_TEMPER: str = "darkcyan"
 COLOR_MAX_TEMPER: str = "orange"
@@ -268,21 +268,19 @@ def _temperaturePlotting(
     :param temp_out_stat: 外気温統計情報
     """
 
-    def make_patch(label: str, appear_time: Optional[str], temper: float,
-                   s_color: str) -> Patch:
+    def make_patch(label: str, temper: float, patch_color: str,
+                   appear_time: Optional[str]) -> Patch:
         """ 指定されたラベルと外気温統計の凡例を生成 """
         if appear_time is not None:
             patch_label: str = f"{label} {temper:4.1f}℃ [{appear_time}]"
         else:
             # 出現時刻がない場合は平均値
             patch_label: str = f"{label} {temper:4.1f}℃"
-        return Patch(color=s_color, label=patch_label)
+        return Patch(color=patch_color, label=patch_label)
 
-    def plot_horizontal_line(axes: Axes, temper: float,
-                             s_color: str, linestyle: Optional[str] = None):
+    def plot_hline(axes: Axes, temper: float, line_color: str, line_style: str):
         """ 指定された統計情報の外気温の横線を生成する """
-        line_style: str = "dashed" if linestyle is None else linestyle
-        axes.axhline(temper, color=s_color, linestyle=line_style, linewidth=1.)
+        axes.axhline(temper, color=line_color, linestyle=line_style, linewidth=1.)
 
     # 外気温・室内気温のプロット
     #  Y軸ラベルフォント
@@ -326,26 +324,26 @@ def _temperaturePlotting(
         min_appear_time = temp_out_stat.min.appear_time
         max_appear_time = temp_out_stat.max.appear_time
     mim_temper_patch: Patch = make_patch(
-        "最低", min_appear_time, temp_out_stat.min.temper, COLOR_MIN_TEMPER
+        "最低", temp_out_stat.min.temper, COLOR_MIN_TEMPER, min_appear_time
     )
     max_temper_patch: Patch = make_patch(
-        "最高", max_appear_time, temp_out_stat.max.temper, COLOR_MAX_TEMPER
+        "最高", temp_out_stat.max.temper, COLOR_MAX_TEMPER, max_appear_time
     )
     avg_temper_patch: Patch = make_patch(
-        "平均", None, temp_out_stat.average_temper, COLOR_AVG_TEMPER
+        "平均", temp_out_stat.average_temper, COLOR_AVG_TEMPER, None
     )
     # 最低気温の横線
-    plot_horizontal_line(ax, temp_out_stat.min.temper, COLOR_MIN_TEMPER)
+    plot_hline(ax, temp_out_stat.min.temper, COLOR_MIN_TEMPER, "dashed")
     # 最高気温の横線
-    plot_horizontal_line(ax, temp_out_stat.max.temper, COLOR_MAX_TEMPER)
+    plot_hline(ax, temp_out_stat.max.temper, COLOR_MAX_TEMPER, "dashed")
     # 平均気温の横線
     #  最低気温と最高気温の差が既定値以下なら平均線を出力しない ※線が接近して非常に見づらい
     appear_threthold: float = PLOT_CONF["appear_avg_line.threthold_diff_temper"]
     diff_temper: float = abs(temp_out_stat.max.temper - temp_out_stat.min.temper)
     if diff_temper > appear_threthold:
         # しきい値より大きかったら出力
-        plot_horizontal_line(
-            ax, temp_out_stat.average_temper, COLOR_AVG_TEMPER, linestyle="dashdot"
+        plot_hline(
+            ax, temp_out_stat.average_temper, COLOR_AVG_TEMPER, "dashdot"
         )
     # Create TempOutStat legend
     stat_legend: Legend = ax.legend(
@@ -561,7 +559,8 @@ def gen_plot_image(
         if logger is not None and logger_debug:
             logger.debug(f"year_month: {year_month}")
         rec_count, df, title_date_part = loadMonthDataFrame(
-            dao, device_name, year_month=year_month, logger=logger, logger_debug=logger_debug
+            dao, device_name, year_month=year_month, 
+            logger=logger, logger_debug=logger_debug
         )
     else:
         # 範囲指定データ
@@ -582,7 +581,8 @@ def gen_plot_image(
         return rec_count, None
 
     # 外気温統計情報を取得する
-    temp_out_stat: TempOutStat = get_temp_out_stat(df, logger=logger)
+    temp_out_stat: TempOutStat = get_temp_out_stat(
+        df, logger=logger, logger_debug=logger_debug)
     # グラフ生成
     fig: Figure = make_graph(
         # 必須パラメータ
