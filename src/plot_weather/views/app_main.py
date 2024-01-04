@@ -7,7 +7,7 @@ from flask import (
 from werkzeug.datastructures import Headers, MultiDict
 from werkzeug.exceptions import (
     BadRequest, Forbidden, HTTPException, InternalServerError, NotFound
-    )
+)
 
 import psycopg2
 from psycopg2.pool import SimpleConnectionPool
@@ -15,7 +15,7 @@ from psycopg2.extensions import connection
 
 from plot_weather import (BAD_REQUEST_IMAGE_DATA,
                           INTERNAL_SERVER_ERROR_IMAGE_DATA,
-                          NO_IMAGE_DATA, 
+                          NO_IMAGE_DATA,
                           DebugOutRequest,
                           app, app_logger, app_logger_debug)
 from plot_weather.dao.weatherdao import WeatherDao
@@ -71,7 +71,8 @@ INVALID_YEAR_MONTH: str = f"436,{PARAM_YEAR_MONTH} {MSG_INVALID}"
 # エラーメッセージを格納する辞書オブジェクト定義
 MSG_DESCRIPTION: str = "error_message"
 # 固定メッセージエラー辞書オブジェクト
-ABORT_DICT_UNMATCH_TOKEN: Dict[str, str] = {MSG_DESCRIPTION: app.config["UNMATCH_TOKEN"]}
+ABORT_DICT_UNMATCH_TOKEN: Dict[str, str] = {
+    MSG_DESCRIPTION: app.config["UNMATCH_TOKEN"]}
 # 可変メッセージエラー辞書オブジェクト: ""部分を置き換える
 ABORT_DICT_BLANK_MESSAGE: Dict[str, str] = {MSG_DESCRIPTION: ""}
 
@@ -104,17 +105,19 @@ def index() -> str:
     # 前回アプリ実行時のデバイス名がクッキーに存在するか
     device_in_cookie: str = request.cookies.get(PARAM_DEVICE)
     if app_logger_debug:
-        app_logger.debug(f"{request.path}, cookie.device_name: {device_in_cookie}")
-    
+        app_logger.debug(
+            f"{request.path}, cookie.device_name: {device_in_cookie}")
+
     try:
         conn: connection = get_connection()
         # センサーデバイスリスト取得
         device_dao: DeviceDao = DeviceDao(conn, logger=app_logger)
         devices: List[DeviceRecord] = device_dao.get_devices()
-        device_dict_list: List[Dict[str, str]] = DeviceDao.to_dict_without_id(devices)
+        device_dict_list: List[Dict[str, str]
+                               ] = DeviceDao.to_dict_without_id(devices)
         if app_logger_debug:
             app_logger.debug(f"device_dict_list:{device_dict_list}")
-        
+
         # 前回選択されたデバイス名存在したら関連する年月リストと当日画像をロードする
         ym_list: Optional[List[str]] = None
         prev_ym_list: Optional[List[str]] = None
@@ -131,8 +134,8 @@ def index() -> str:
             else:
                 s_today = date.today().strftime('%Y-%m-%d')
             # 年月リスト
-            ym_list = dao.getGroupByMonths(device_in_cookie) 
-            prev_ym_list = dao.getPrevYearMonthList(device_in_cookie)   
+            ym_list = dao.getGroupByMonths(device_in_cookie)
+            prev_ym_list = dao.getPrevYearMonthList(device_in_cookie)
             image_date_params = ImageDateParams(ImageDateType.TODAY)
             param: Dict[ParamKey, str] = image_date_params.getParam()
             param[ParamKey.TODAY] = s_today
@@ -141,14 +144,15 @@ def index() -> str:
             rec_count, img_base64_encoded = gen_plot_image(
                 conn, device_in_cookie, image_date_params, logger=app_logger
             )
-        
+
         if rec_count is None or rec_count == 0:
             # No image
-            img_base64_encoded = NO_IMAGE_DATA    
+            img_base64_encoded = NO_IMAGE_DATA
 
         return render_template(
             "showplotweather.html",
-            info_today_update_interval=app.config.get("INFO_TODAY_UPDATE_INTERVAL"),
+            info_today_update_interval=app.config.get(
+                "INFO_TODAY_UPDATE_INTERVAL"),
             app_root_url=APP_ROOT,
             ip_host=app.config["SERVER_NAME"],
             path_get_today_image="/gettodayimage/",
@@ -167,7 +171,8 @@ def index() -> str:
         )
     except Exception as exp:
         app_logger.error(exp)
-        abort(InternalServerError.code, InternalServerError(original_exception=exp))
+        abort(InternalServerError.code,
+              InternalServerError(original_exception=exp))
 
 
 @app.route("/plot_weather/getyearmonthlistwithdevice/<device_name>", methods=["GET"])
@@ -216,7 +221,7 @@ def getTodayImage(device_name: str) -> Response:
     """
     if app_logger_debug:
         app_logger.debug(f"{request.path}, device_name: {device_name}")
-   
+
     # デバイス名 ※必須
     try:
         conn: connection = get_connection()
@@ -332,7 +337,7 @@ def getLastDataForPhone() -> Response:
             device_name: デバイス名 ※必須
        [仕様変更] 2023-12-03
          (2) レスポンスに外気温の統計情報を追加する
-    
+
     :param: request parameter: device_name="xxxxx"
     """
     if app_logger_debug:
@@ -369,7 +374,7 @@ def getLastDataForPhone() -> Response:
                 param_device_name, find_date)
             if app_logger_debug:
                 app_logger.debug(f"min_temp: {min_temp}, max_temp: {max_temp}")
-            # 検索日の統計情報Dict    
+            # 検索日の統計情報Dict
             stat_today_dict: Dict = _makeTempOutStatDict(min_temp, max_temp)
             # 検索日を追加
             stat_today_dict["measurement_date"] = find_date
@@ -382,7 +387,7 @@ def getLastDataForPhone() -> Response:
             stat_before_dict: Dict = _makeTempOutStatDict(min_temp, max_temp)
             stat_before_dict["measurement_date"] = before_date
             return _responseLastDataForPhone(
-                measurement_time, temp_out, temp_in, humid, pressure, 
+                measurement_time, temp_out, temp_in, humid, pressure,
                 rec_count, stat_today_dict=stat_today_dict, stat_before_dict=stat_before_dict)
         else:
             # デバイス名に対応するレコード無し
@@ -390,7 +395,7 @@ def getLastDataForPhone() -> Response:
             return _responseLastDataForPhone(
                 None, None, None, None, None, rec_count,
                 stat_today_dict=None, stat_before_dict=None
-                )
+            )
     except psycopg2.Error as db_err:
         app_logger.error(db_err)
         abort(InternalServerError.code, _set_errormessage(f"559,{db_err}"))
@@ -422,9 +427,11 @@ def getFirstRegisterDayForPhone() -> Response:
         conn: connection = get_connection()
         dao = WeatherDao(conn, logger=app_logger)
         # デバイス名に対応する初回登録日取得
-        first_register_day: Optional[str] = dao.getFisrtRegisterDay(param_device_name)
+        first_register_day: Optional[str] = dao.getFisrtRegisterDay(
+            param_device_name)
         if app_logger_debug:
-            app_logger.debug(f"first_register_day[{type(first_register_day)}]: {first_register_day}")
+            app_logger.debug(
+                f"first_register_day[{type(first_register_day)}]: {first_register_day}")
         if first_register_day:
             return _responseFirstRegisterDayForPhone(first_register_day, 1)
         else:
@@ -462,7 +469,7 @@ def getTodayImageForPhone() -> Response:
 
     # デバイス名必須
     param_device_name: str = _checkDeviceName(request.args)
-    
+
     # 表示領域サイズ+密度は必須: 形式(横x縦x密度)
     str_img_size: str = _checkPhoneImageSize(headers)
     try:
@@ -536,7 +543,7 @@ def getBeforeDateImageForPhone() -> Response:
         rec_count, img_base64_encoded = gen_plot_image(
             conn, param_device_name, image_date_params, logger=app_logger
         )
-        return _responseImageForPhone(rec_count,img_base64_encoded)
+        return _responseImageForPhone(rec_count, img_base64_encoded)
     except psycopg2.Error as db_err:
         app_logger.error(db_err)
         abort(InternalServerError.code, _set_errormessage(f"559,{db_err}"))
@@ -620,7 +627,8 @@ def _checkPhoneImageSize(headers: Headers) -> str:
         img_ht: int = int(sizes[1])
         density: float = float(sizes[2])
         if app_logger_debug:
-            app_logger.debug(f"imgWd: {img_wd}, imgHt: {img_ht}, density: {density}")
+            app_logger.debug(
+                f"imgWd: {img_wd}, imgHt: {img_ht}, density: {density}")
         return img_size
     except Exception as exp:
         # ログには例外メッセージ
@@ -637,7 +645,7 @@ def _checkBeforeDays(args: MultiDict) -> str:
         abort(BadRequest.code, _set_errormessage(REQUIRED_BOFORE_DAY))
 
     before_days = args.get(PARAM_BOFORE_DAYS, default=-1, type=int)
-    if before_days not in [1,2,3,7]:
+    if before_days not in [1, 2, 3, 7]:
         abort(BadRequest.code, _set_errormessage(INVALID_BOFORE_DAY))
 
     return str(before_days)
@@ -656,7 +664,7 @@ def _checkDeviceName(args: MultiDict) -> str:
     # 長さチェック: 1 - 20
     param_device_name: str = args.get(PARAM_DEVICE, default="", type=str)
     chk_size: int = len(param_device_name)
-    if chk_size < 1 or chk_size > DEVICE_LENGTH:    
+    if chk_size < 1 or chk_size > DEVICE_LENGTH:
         abort(BadRequest.code, _set_errormessage(INVALIDD_DEVICE))
 
     # 存在チェック
@@ -701,12 +709,12 @@ def _checkStartDay(args: MultiDict) -> Optional[str]:
 
 def _createImageResponse(rec_count: int, img_src: Optional[str]) -> Response:
     """画像レスポンスを返却する (JavaScript用)"""
-    resp_obj = {"status": "success", 
+    resp_obj = {"status": "success",
                 "data": {
-                    "img_src": img_src, 
+                    "img_src": img_src,
                     "rec_count": rec_count
                 }
-            }
+                }
     return _make_respose(resp_obj, 200)
 
 
@@ -729,7 +737,7 @@ def _responseLastDataForPhone(
         rec_count: int,
         stat_today_dict: Optional[Dict],
         stat_before_dict: Optional[Dict]
-        ) -> Response:
+) -> Response:
     """気象データの最終レコードを返却する (スマホアプリ用)"""
     resp_obj: Dict[str, Dict[str, Union[str, float]]] = {
         "status":
@@ -758,7 +766,7 @@ def _makeTempOutStatDict(minDict: Dict, maxDict: Dict) -> Dict:
 def _responseFirstRegisterDayForPhone(
         first_day: Optional[str],
         rec_count: int
-        ) -> Response:
+) -> Response:
     """気象データの初回登録日を返却する (スマホアプリ用)"""
     resp_obj: Dict[str, Dict[str, Union[str, int]]] = {
         "status":
@@ -779,9 +787,9 @@ def _responseImageForPhone(rec_count: int, img_src: str) -> Response:
     resp_obj: Dict[str, Dict[str, Union[int, str]]] = {
         "status": {"code": 0, "message": "OK"},
         "data": {
-            "img_src": img_src, 
+            "img_src": img_src,
             "rec_count": rec_count
-         }
+        }
     }
     return _make_respose(resp_obj, 200)
 
