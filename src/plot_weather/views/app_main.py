@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Dict, List, Optional, Tuple, Union
 
 from flask import (
@@ -8,6 +8,8 @@ from werkzeug.datastructures import Headers, MultiDict
 from werkzeug.exceptions import (
     BadRequest, Forbidden, HTTPException, InternalServerError, NotFound
 )
+
+from pandas.core.frame import DataFrame
 
 import psycopg2
 from psycopg2.pool import SimpleConnectionPool
@@ -22,8 +24,12 @@ from plot_weather.dao.weatherdao import WeatherDao
 from plot_weather.dao.weatherstatdao import TempOutStatDao
 from plot_weather.dao.devicedao import DeviceDao, DeviceRecord
 from plot_weather.db.sqlite3conv import DateFormatError, strdate2timestamp
+from plot_weather.loader.dataframeloader import (
+    loadTodayDataFrame, loadMonthDataFrame, loadBeforeDaysRangeDataFrame
+)
+from plot_weather.loader.dataframeloader_prevcomp import loadPrevCompDataFrames
 from plot_weather.plotter.plotterweather import (
-    ImageDateType, gen_plot_image, ImageDateParams, ParamKey
+    gen_plot_image, PlotDateType, PlotParam
 )
 from plot_weather.plotter.plotterweather_prevcomp import (
     gen_plot_image as gen_comp_prev_plot_image
@@ -129,22 +135,30 @@ def index() -> str:
             dao: WeatherDao = WeatherDao(conn, logger=app_logger)
             last_register_day: Optional[str] = dao.getLastRegisterDay(
                 device_in_cookie)
+            today_date: str
             if last_register_day is not None:
-                s_today = last_register_day
+                today_date = last_register_day
             else:
-                s_today = date.today().strftime('%Y-%m-%d')
+                today_date = date.today().strftime(date_util.FMT_ISO8601)
             # 年月リスト
             ym_list = dao.getGroupByMonths(device_in_cookie)
             prev_ym_list = dao.getPrevYearMonthList(device_in_cookie)
-            image_date_params = ImageDateParams(ImageDateType.TODAY)
-            param: Dict[ParamKey, str] = image_date_params.getParam()
-            param[ParamKey.TODAY] = s_today
-            image_date_params.setParam(param)
-            # データ件数, base64画像形式文字列
-            rec_count, img_base64_encoded = gen_plot_image(
-                conn, device_in_cookie, image_date_params, logger=app_logger
+            # DataFrameの取得
+            rec_count: int
+            df: Optional[DataFrame]
+            rec_count, df = loadTodayDataFrame(
+                conn, device_in_cookie, today_date,
+                logger=app_logger, logger_debug=app_logger_debug
             )
-
+            if rec_count > 0:
+                # 当日データのパラメータ生成
+                plot_param: PlotParam = PlotParam(
+                    plote_date_type=PlotDateType.TODAY,
+                    start_date=today_date, end_date=None, before_days=None
+                )
+                img_base64_encoded: str = gen_plot_image(
+                    df, plot_param, phone_image_size=None, logger=app_logger
+                )
         if rec_count is None or rec_count == 0:
             # No image
             img_base64_encoded = NO_IMAGE_DATA
@@ -228,21 +242,30 @@ def getTodayImage(device_name: str) -> Response:
         # 本日データプロット画像取得
         dao: WeatherDao = WeatherDao(conn, logger=app_logger)
         last_day: Optional[str] = dao.getLastRegisterDay(device_name)
-        s_today = last_day if last_day is not None else date.today().strftime(
-            '%Y-%m-%d')
-        image_date_params = ImageDateParams(ImageDateType.TODAY)
-        param: Dict[ParamKey, str] = image_date_params.getParam()
-        param[ParamKey.TODAY] = s_today
-        # プラウザ版はなし
-        param[ParamKey.PHONE_SIZE] = None
-        image_date_params.setParam(param)
-        # データ件数, base64画像形式文字列
+        today_date: str
+        if last_day is not None:
+            today_date = last_day
+        else:
+            today_date = date.today().strftime(date_util.FMT_ISO8601)
+        # DataFrameの取得
         rec_count: int
-        img_base64_encoded: str
-        rec_count, img_base64_encoded = gen_plot_image(
-            conn, device_name, image_date_params, logger=app_logger
+        df: Optional[DataFrame]
+        rec_count, df = loadTodayDataFrame(
+            conn, device_name, today_date,
+            logger=app_logger, logger_debug=app_logger_debug
         )
-        return _createImageResponse(rec_count, img_base64_encoded)
+        if rec_count > 0:
+            # 当日データのパラメータ生成
+            plot_param: PlotParam = PlotParam(
+                plote_date_type=PlotDateType.TODAY,
+                start_date=today_date, end_date=None, before_days=None
+            )
+            img_base64_encoded: str = gen_plot_image(
+                df, plot_param, phone_image_size=None, logger=app_logger
+            )
+            return _createImageResponse(rec_count, img_base64_encoded)
+        else:
+            return _createImageResponse(0, None)
     except psycopg2.Error as db_err:
         app_logger.error(db_err)
         abort(InternalServerError.code, _set_errormessage(f"559,{db_err}"))
@@ -251,8 +274,8 @@ def getTodayImage(device_name: str) -> Response:
         return _createErrorImageResponse(InternalServerError.code)
 
 
-@app.route("/plot_weather/getmonthimage/<device_name>/<yearmonth>", methods=["GET"])
-def getMonthImage(device_name: str, yearmonth: str) -> Response:
+@app.route("/plot_weather/getmonthimage/<device_name>/<year_month>", methods=["GET"])
+def getMonthImage(device_name: str, year_month: str) -> Response:
     """要求された年月の月間データ取得
 
     :param device_name: デバイス名
@@ -260,27 +283,33 @@ def getMonthImage(device_name: str, yearmonth: str) -> Response:
     :return: JSON形式(matplotlibでプロットした画像データ)
     """
     if app_logger_debug:
-        app_logger.debug(f"{request.path}, {device_name}, {yearmonth}")
+        app_logger.debug(f"{request.path}, {device_name}, {year_month}")
     try:
         # リクエストパラメータの妥当性チェック: "YYYY-mm" + "-01"
-        chk_yyyymmdd = yearmonth + "-01"
+        chk_yyyymmdd = year_month + "-01"
         # 日付チェック(YYYY-mm-dd): 日付不正の場合例外スロー
         strdate2timestamp(chk_yyyymmdd, raise_error=True)
         conn: connection = get_connection()
-        # 指定年月(year_month)データプロット画像取得
-        image_date_params = ImageDateParams(ImageDateType.YEAR_MONTH)
-        param: Dict[ParamKey, str] = image_date_params.getParam()
-        param[ParamKey.YEAR_MONTH] = yearmonth
-        image_date_params.setParam(param)
-        if app_logger_debug:
-            app_logger.debug(f"param: {param}")
-        # データ件数, base64画像形式文字列
+        # DataFrameの取得
         rec_count: int
-        img_base64_encoded: str
-        rec_count, img_base64_encoded = gen_plot_image(
-            conn, device_name, image_date_params, logger=app_logger
+        df: Optional[DataFrame]
+        rec_count, df = loadMonthDataFrame(
+            conn, device_name, year_month,
+            logger=app_logger, logger_debug=app_logger_debug
         )
-        return _createImageResponse(rec_count, img_base64_encoded)
+        if rec_count > 0:
+            # 年月データのパラメータ生成
+            start_date: str = f"{year_month}-01"
+            plot_param: PlotParam = PlotParam(
+                plote_date_type=PlotDateType.YEAR_MONTH,
+                start_date=start_date, end_date=None, before_days=None
+            )
+            img_base64_encoded: str = gen_plot_image(
+                df, plot_param, phone_image_size=None, logger=app_logger
+            )
+            return _createImageResponse(rec_count, img_base64_encoded)
+        else:
+            return _createImageResponse(0, None)
     except DateFormatError as dfe:
         # BAD Request
         app_logger.warning(dfe)
@@ -295,8 +324,8 @@ def getMonthImage(device_name: str, yearmonth: str) -> Response:
         return _createErrorImageResponse(InternalServerError.code)
 
 
-@app.route("/plot_weather/getcompprevyearimage/<device_name>/<yearmonth>", methods=["GET"])
-def getcompprevyearimage(device_name, yearmonth) -> Response:
+@app.route("/plot_weather/getcompprevyearimage/<device_name>/<year_month>", methods=["GET"])
+def getcompprevyearimage(device_name, year_month) -> Response:
     """要求された年月の前年比較月間データ取得
 
     :param device_name: デバイス名
@@ -304,17 +333,26 @@ def getcompprevyearimage(device_name, yearmonth) -> Response:
     :return: JSON形式(matplotlibでプロットした画像データ)
     """
     if app_logger_debug:
-        app_logger.debug(f"{request.path}, {device_name}, {yearmonth}")
+        app_logger.debug(f"{request.path}, {device_name}, {year_month}")
     try:
-        chk_yyyymmdd = yearmonth + "-01"
+        chk_yyyymmdd = year_month + "-01"
         strdate2timestamp(chk_yyyymmdd, raise_error=True)
         conn: connection = get_connection()
-        rec_count: int
-        img_base64_encoded: str
-        rec_count, img_base64_encoded = gen_comp_prev_plot_image(
-            conn, device_name, yearmonth, logger=app_logger
+        # DataFrameの取得
+        df_curr: Optional[DataFrame]
+        df_prev: Optional[DataFrame]
+        df_curr, df_prev = loadPrevCompDataFrames(
+            conn, device_name, year_month,
+            logger=app_logger, logger_debug=app_logger_debug
         )
-        return _createImageResponse(rec_count, img_base64_encoded)
+        if df_curr is not None and df_prev is not None:
+            img_base64_encoded: str = gen_comp_prev_plot_image(
+                df_curr, df_prev, year_month, logger=app_logger
+            )
+            rec_count: int = df_curr.shape[0]
+            return _createImageResponse(rec_count, img_base64_encoded)
+        else:
+            return _createImageResponse(0, None)
     except DateFormatError as dfe:
         # BAD Request
         app_logger.warning(dfe)
@@ -351,7 +389,7 @@ def getLastDataForPhone() -> Response:
         abort(Forbidden.code, ABORT_DICT_UNMATCH_TOKEN)
 
     # デバイス名必須
-    param_device_name: str = _checkDeviceName(request.args)
+    device_name: str = _checkDeviceName(request.args)
     try:
         conn: connection = get_connection()
         # 現在時刻時点の最新の気象データ取得
@@ -359,7 +397,7 @@ def getLastDataForPhone() -> Response:
         rec_count: int
         row: Optional[Tuple[str, float, float, float, float]]
         # デバイス名に対応する最新のレコード取得
-        row = dao.getLastData(device_name=param_device_name)
+        row = dao.getLastData(device_name=device_name)
         if row:
             rec_count = 1
             measurement_time, temp_out, temp_in, humid, pressure = row
@@ -371,7 +409,7 @@ def getLastDataForPhone() -> Response:
             min_temp: Dict
             max_temp: Dict
             min_temp, max_temp = temp_out_stat.get_statistics(
-                param_device_name, find_date)
+                device_name, find_date)
             if app_logger_debug:
                 app_logger.debug(f"min_temp: {min_temp}, max_temp: {max_temp}")
             # 検索日の統計情報Dict
@@ -381,7 +419,7 @@ def getLastDataForPhone() -> Response:
             # 前日の外気温の統計情報を取得
             before_date: str = date_util.addDayToString(find_date, add_days=-1)
             min_temp, max_temp = temp_out_stat.get_statistics(
-                param_device_name, before_date)
+                device_name, before_date)
             if app_logger_debug:
                 app_logger.debug(f"min_temp: {min_temp}, max_temp: {max_temp}")
             stat_before_dict: Dict = _makeTempOutStatDict(min_temp, max_temp)
@@ -455,7 +493,7 @@ def getTodayImageForPhone() -> Response:
 
     :param: request parameter: device_name="xxxxx"
     :return: jSON形式(matplotlibでプロットした画像データ(形式: png)のbase64エンコード済み文字列)
-         (出力内容) jSON('data:': 'img_src':'image/png;base64,... base64encoded data ...',
+         (出力内容) JSON('data:': 'img_src':'image/png;base64,... base64encoded data ...',
                          'rec_count':xxx)
     """
     if app_logger_debug:
@@ -468,25 +506,33 @@ def getTodayImageForPhone() -> Response:
         abort(Forbidden.code, ABORT_DICT_UNMATCH_TOKEN)
 
     # デバイス名必須
-    param_device_name: str = _checkDeviceName(request.args)
+    device_name: str = _checkDeviceName(request.args)
 
     # 表示領域サイズ+密度は必須: 形式(横x縦x密度)
     str_img_size: str = _checkPhoneImageSize(headers)
     try:
         conn: connection = get_connection()
         # 当日はシステム日付
-        s_today = date.today().strftime('%Y-%m-%d')
-        image_date_params = ImageDateParams(ImageDateType.TODAY)
-        param: Dict[ParamKey, str] = image_date_params.getParam()
-        param[ParamKey.TODAY] = s_today
-        param[ParamKey.PHONE_SIZE] = str_img_size
-        image_date_params.setParam(param)
+        today_date = date.today().strftime(date_util.FMT_ISO8601)
+        # DataFrameの取得
         rec_count: int
-        img_base64_encoded: str
-        rec_count, img_base64_encoded = gen_plot_image(
-            conn, param_device_name, image_date_params, logger=app_logger
+        df: Optional[DataFrame]
+        rec_count, df = loadTodayDataFrame(
+            conn, device_name, today_date,
+            logger=app_logger, logger_debug=app_logger_debug
         )
-        return _responseImageForPhone(rec_count, img_base64_encoded)
+        if rec_count > 0:
+            # 当日データのパラメータ生成
+            plot_param: PlotParam = PlotParam(
+                plote_date_type=PlotDateType.TODAY,
+                start_date=today_date, end_date=None, before_days=None
+            )
+            img_base64_encoded: str = gen_plot_image(
+                df, plot_param, phone_image_size=str_img_size, logger=app_logger
+            )
+            return _responseImageForPhone(rec_count, img_base64_encoded)
+        else:
+            return _responseImageForPhone(0, None)
     except psycopg2.Error as db_err:
         app_logger.error(db_err)
         abort(InternalServerError.code, _set_errormessage(f"559,{db_err}"))
@@ -519,31 +565,42 @@ def getBeforeDateImageForPhone() -> Response:
         abort(Forbidden.code, ABORT_DICT_UNMATCH_TOKEN)
 
     # デバイス名 ※必須チェック
-    param_device_name: str = _checkDeviceName(request.args)
+    device_name: str = _checkDeviceName(request.args)
     # 検索開始日 ※任意、指定されている場合はISO8601形式チェック
-    str_start_day: Optional[str] = _checkStartDay(request.args)
-    if str_start_day is None:
+    end_date: Optional[str] = _checkStartDay(request.args)
+    if end_date is None:
         # 検索開始日がない場合は当日を設定
-        str_start_day = date_util.getTodayIsoDate()
+        end_date = date_util.getTodayIsoDate()
     # Check before_days query parameter
-    str_before_days: str = _checkBeforeDays(request.args)
+    before_days: int = _checkBeforeDays(request.args)
 
     # 表示領域サイズ+密度は必須: 形式(横x縦x密度)
     str_img_size: str = _checkPhoneImageSize(headers)
     try:
         conn: connection = get_connection()
-        image_date_params = ImageDateParams(ImageDateType.RANGE)
-        param: Dict[ParamKey, str] = image_date_params.getParam()
-        param[ParamKey.START_DAY] = str_start_day
-        param[ParamKey.BEFORE_DAYS] = str_before_days
-        param[ParamKey.PHONE_SIZE] = str_img_size
-        image_date_params.setParam(param)
+        # DataFrameの取得
         rec_count: int
-        img_base64_encoded: str
-        rec_count, img_base64_encoded = gen_plot_image(
-            conn, param_device_name, image_date_params, logger=app_logger
+        df: Optional[DataFrame]
+        rec_count, df = loadBeforeDaysRangeDataFrame(
+            conn, device_name, end_date, before_days,
+            logger=app_logger, logger_debug=True
         )
-        return _responseImageForPhone(rec_count, img_base64_encoded)
+        if rec_count > 0:
+            # DataFrameの先頭から開始日を取得
+            dt_first: datetime = df.index[0].to_pydatetime()
+            # 当日の日付文字列 ※一旦 dateオブジェクトに変換して"年月日"を取得
+            first_date: str = dt_first.date().isoformat()
+            # 検索終了日からN日前のデータ取得パラメータ生成
+            plot_param: PlotParam = PlotParam(
+                plote_date_type=PlotDateType.RANGE,
+                start_date=first_date, end_date=end_date, before_days=before_days
+            )
+            img_base64_encoded: str = gen_plot_image(
+                df, plot_param, phone_image_size=str_img_size, logger=app_logger
+            )
+            return _responseImageForPhone(rec_count, img_base64_encoded)
+        else:
+            return _responseImageForPhone(0, None)
     except psycopg2.Error as db_err:
         app_logger.error(db_err)
         abort(InternalServerError.code, _set_errormessage(f"559,{db_err}"))
@@ -636,7 +693,7 @@ def _checkPhoneImageSize(headers: Headers) -> str:
         abort(BadRequest.code, _set_errormessage(INVALID_PHONE_IMG))
 
 
-def _checkBeforeDays(args: MultiDict) -> str:
+def _checkBeforeDays(args: MultiDict) -> int:
     # QueryParameter: before_days in (1,2,3,7)
     # before_days = args.get("before_days", default=-1, type=int)
     # args.get(key): keyが無い場合も キーが有る場合で数値以外でも -1 となり必須チェックができない
@@ -648,7 +705,7 @@ def _checkBeforeDays(args: MultiDict) -> str:
     if before_days not in [1, 2, 3, 7]:
         abort(BadRequest.code, _set_errormessage(INVALID_BOFORE_DAY))
 
-    return str(before_days)
+    return before_days
 
 
 def _checkDeviceName(args: MultiDict) -> str:

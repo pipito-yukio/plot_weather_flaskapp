@@ -1,0 +1,16 @@
+{
+  "font.families": ["sans-serif", "monospace"],
+  "sans-serif.font": ["IPAexGothic"," Noto Sans CJK JP"],
+  "monospace.font": ["Source Han Code JP"],
+  "label.sizes": [10, 9, 9],
+  "legend-fontsize": 9,
+  "appear_avg_line.threthold_diff_temper": 5.0,
+  "axes_height_ratio": [5, 2, 3],
+  "figsize": {
+    "pc": [9.8, 6.4]
+  },
+  "ylim": {
+    "temp": [-30, 50],
+    "pressure": [960, 1040]
+  }
+}
